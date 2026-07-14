@@ -11,7 +11,7 @@ function createPrismaClient() {
 
   if (dbUrl.startsWith('libsql://')) {
     // Turso / remote libSQL
-    const libsql: Client = createClient({ url: dbUrl });
+    const libsql: Client = createClient({ url: dbUrl, authToken: process.env.TURSO_AUTH_TOKEN });
     const adapter = new PrismaLibSql(libsql);
     return new PrismaClient({ adapter });
   }
