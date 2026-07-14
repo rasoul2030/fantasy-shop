@@ -17,5 +17,5 @@ echo  To stop: close this window or press Ctrl+C
 echo  ----------------------------------------
 echo.
 
-call npx next dev -p 3000
+call npx next dev -p 3000 --no-turbopack
 pause
