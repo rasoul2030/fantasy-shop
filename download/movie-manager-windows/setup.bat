@@ -55,6 +55,11 @@ if %errorlevel% neq 0 (
 echo  [OK] Database ready.
 echo.
 
+echo  [4/4] Creating posters folder...
+if not exist "public\posters" mkdir public\posters
+echo  [OK] Done.
+echo.
+
 echo  ========================================
 echo.
 echo  Setup complete!

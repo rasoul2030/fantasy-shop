@@ -13,6 +13,8 @@ import {
   X,
   Save,
   AlertTriangle,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -178,6 +180,33 @@ export default function AdminPanel({
       categoryIds: movie.categories.map((mc) => mc.categoryId),
     });
     setShowMovieForm(true);
+  };
+
+  // Upload poster image
+  const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload-poster', {
+        method: 'POST',
+        body: formDataUpload,
+      });
+      const data = await res.json();
+      if (data.url) {
+        setFormData((p) => ({ ...p, posterUrl: data.url }));
+        toast({ title: 'آپلود موفق', description: 'عکس پوستر آپلود شد' });
+      } else {
+        toast({ title: 'خطا', description: data.error || 'آپلود ناموفق', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'خطا', description: 'خطا در آپلود عکس', variant: 'destructive' });
+    }
+    // Reset file input
+    e.target.value = '';
   };
 
   // Save movie (create or update)
@@ -545,14 +574,31 @@ export default function AdminPanel({
             {/* Poster URL & Folder Path */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">آدرس پوستر</Label>
-                <Input
-                  value={formData.posterUrl}
-                  onChange={(e) => setFormData((p) => ({ ...p, posterUrl: e.target.value }))}
-                  placeholder="https://..."
-                  dir="ltr"
-                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
-                />
+                <Label className="text-cinematic-muted text-sm">پوستر فیلم</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.posterUrl}
+                    onChange={(e) => setFormData((p) => ({ ...p, posterUrl: e.target.value }))}
+                    placeholder="https://... یا فایل رو آپلود کنید"
+                    dir="ltr"
+                    className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+                  />
+                  <label className="cursor-pointer flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-cinematic-accent hover:bg-cinematic-accent-hover text-white text-sm whitespace-nowrap transition-colors">
+                    <Upload className="w-4 h-4" />
+                    انتخاب عکس
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={handlePosterUpload}
+                    />
+                  </label>
+                </div>
+                {formData.posterUrl && (
+                  <div className="mt-2 relative w-20 h-28 rounded-md overflow-hidden border border-cinematic-border">
+                    <img src={formData.posterUrl} alt="پوستر" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-cinematic-muted text-sm">مسیر پوشه</Label>
