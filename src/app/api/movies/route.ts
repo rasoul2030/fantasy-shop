@@ -18,10 +18,7 @@ export async function GET(request: Request) {
       };
     }
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { persianTitle: { contains: search } },
-      ];
+      where.title = { contains: search };
     }
     if (status) {
       where.status = status;
@@ -47,7 +44,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, persianTitle, slug, description, posterUrl, folderPath, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
+    const { title, slug, description, posterUrl, folderPath, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
 
     if (!title || !slug) {
       return NextResponse.json({ error: 'Title and slug are required' }, { status: 400 });
@@ -56,7 +53,6 @@ export async function POST(request: Request) {
     const movie = await db.movie.create({
       data: {
         title,
-        persianTitle: persianTitle || null,
         slug,
         description: description || null,
         posterUrl: posterUrl || null,

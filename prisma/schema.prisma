@@ -19,10 +19,9 @@ model Category {
 
 model Movie {
   id          String   @id @default(cuid())
-  title        String
-  persianTitle String?
-  slug         String   @unique
-  description  String?
+  title       String
+  slug        String   @unique
+  description String?
   posterUrl   String?
   folderPath  String?
   year        Int?

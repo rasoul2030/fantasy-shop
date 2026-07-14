@@ -20,7 +20,6 @@ interface MovieCategory {
 interface Movie {
   id: string;
   title: string;
-  persianTitle?: string | null;
   slug: string;
   description?: string | null;
   posterUrl?: string | null;
