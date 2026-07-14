@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import CategoryFilter from '@/components/CategoryFilter';
 import FeaturedRow from '@/components/FeaturedRow';
@@ -24,6 +26,10 @@ export default function HomePage() {
 
   // View state
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLogging, setAdminLogging] = useState(false);
+  const isProduction = process.env.NODE_ENV === 'production';
 
   // Data state
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -148,6 +154,31 @@ export default function HomePage() {
     }
   };
 
+  // Admin login handler
+  const handleAdminLogin = async () => {
+    if (!adminPassword.trim()) return;
+    setAdminLogging(true);
+    try {
+      const res = await fetch('/api/admin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      if (res.ok) {
+        setIsAdmin(true);
+        setShowAdminLogin(false);
+        setAdminPassword('');
+        toast({ title: 'خوش آمدید', description: 'وارد بخش مدیریت شدید' });
+      } else {
+        toast({ title: 'خطا', description: 'رمز عبور اشتباه است', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'خطا', description: 'خطا در ارتباط با سرور', variant: 'destructive' });
+    } finally {
+      setAdminLogging(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / limit);
 
   return (
@@ -157,7 +188,15 @@ export default function HomePage() {
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
-        onAdminClick={() => setIsAdmin(!isAdmin)}
+        onAdminClick={() => {
+      if (isAdmin) {
+        setIsAdmin(false);
+      } else if (isProduction) {
+        setShowAdminLogin(true);
+      } else {
+        setIsAdmin(true);
+      }
+    }}
         isAdmin={isAdmin}
       />
 
@@ -249,6 +288,41 @@ export default function HomePage() {
             </p>
           </div>
         </footer>
+      )}
+
+      {/* Admin Password Dialog */}
+      {showAdminLogin && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 rounded-xl border border-cinematic-border bg-cinematic-surface p-6 space-y-4">
+            <h3 className="text-lg font-bold text-white">ورود به مدیریت</h3>
+            <p className="text-sm text-cinematic-muted">رمز عبور مدیریت را وارد کنید</p>
+            <Input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+              placeholder="رمز عبور"
+              className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                className="border-cinematic-border bg-cinematic-card text-cinematic-muted"
+                onClick={() => { setShowAdminLogin(false); setAdminPassword(''); }}
+              >
+                انصراف
+              </Button>
+              <Button
+                onClick={handleAdminLogin}
+                disabled={adminLogging || !adminPassword.trim()}
+                className="bg-primary hover:bg-primary/90 text-white"
+              >
+                {adminLogging ? '...' : 'ورود'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Movie Detail Modal */}

@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+const disableFolder = process.env.NEXT_PUBLIC_DISABLE_FOLDER === 'true';
+
 interface MovieCategory {
   id: string;
   movieId: string;
@@ -127,14 +129,16 @@ export default function MovieCard({ movie, onClick, onOpenFolder, index = 0 }: M
                 {movie.code}
               </span>
             )}
-            <Button
-              size="sm"
-              className="w-full bg-primary/90 hover:bg-primary text-white text-xs h-8"
-              onClick={handleOpenFolder}
-            >
-              <FolderOpen className="h-3.5 w-3.5 ml-1" />
-              باز کردن پوشه
-            </Button>
+            {!disableFolder && (
+              <Button
+                size="sm"
+                className="w-full bg-primary/90 hover:bg-primary text-white text-xs h-8"
+                onClick={handleOpenFolder}
+              >
+                <FolderOpen className="h-3.5 w-3.5 ml-1" />
+                باز کردن پوشه
+              </Button>
+            )}
           </div>
         </div>
 

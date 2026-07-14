@@ -139,13 +139,15 @@ export default function MovieDetail({ movie, open, onClose, onOpenFolder }: Movi
                 )}
 
                 {/* Actions */}
-                <Button
-                  className="w-full bg-primary hover:bg-primary/90 text-white h-11"
-                  onClick={() => onOpenFolder(movie.id)}
-                >
-                  <FolderOpen className="h-4 w-4 ml-2" />
-                  باز کردن پوشه
-                </Button>
+                {process.env.NEXT_PUBLIC_DISABLE_FOLDER !== 'true' && (
+                  <Button
+                    className="w-full bg-primary hover:bg-primary/90 text-white h-11"
+                    onClick={() => onOpenFolder(movie.id)}
+                  >
+                    <FolderOpen className="h-4 w-4 ml-2" />
+                    باز کردن پوشه
+                  </Button>
+                )}
               </div>
             </motion.div>
           )}
