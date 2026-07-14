@@ -1,21 +1,20 @@
 @echo off
-cd /d "%~dp0"
 chcp 65001 >nul 2>&1
-title Movie Manager
+title Movie Manager - Running
 
 echo.
 echo  ========================================
-echo       Movie Manager - Running
+echo    Movie Manager - Running
 echo  ========================================
 echo.
-echo  Website is running...
-echo  Open your browser:
+echo  Open in browser:
 echo.
 echo     http://localhost:3000
 echo.
-echo  To stop: close this window or press Ctrl+C
+echo  Close this window or press Ctrl+C to stop.
 echo  ----------------------------------------
 echo.
 
+cd /d "%~dp0"
 call npx next dev -p 3000
 pause
