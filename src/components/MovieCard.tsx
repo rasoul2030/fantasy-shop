@@ -20,6 +20,7 @@ interface MovieCategory {
 interface Movie {
   id: string;
   title: string;
+  persianTitle?: string | null;
   slug: string;
   description?: string | null;
   posterUrl?: string | null;
@@ -118,9 +119,14 @@ export default function MovieCard({ movie, onClick, onOpenFolder, index = 0 }: M
 
           {/* Hover Content */}
           <div className="absolute inset-x-0 bottom-0 translate-y-full transition-transform duration-300 group-hover:translate-y-0 p-3">
-            <h3 className="text-sm font-bold text-white leading-relaxed line-clamp-2 mb-2">
+            <h3 className="text-sm font-bold text-white leading-relaxed line-clamp-2 mb-1">
               {movie.title}
             </h3>
+            {movie.persianTitle && (
+              <p className="text-xs text-cinematic-muted line-clamp-1 mb-2">
+                {movie.persianTitle}
+              </p>
+            )}
             <Button
               size="sm"
               className="w-full bg-primary/90 hover:bg-primary text-white text-xs h-8"
@@ -137,6 +143,11 @@ export default function MovieCard({ movie, onClick, onOpenFolder, index = 0 }: M
           <h3 className="text-sm font-bold text-white leading-relaxed line-clamp-1 group-hover:text-primary transition-colors">
             {movie.title}
           </h3>
+          {movie.persianTitle && (
+            <p className="text-xs text-cinematic-muted leading-relaxed line-clamp-1 mt-0.5">
+              {movie.persianTitle}
+            </p>
+          )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />

@@ -69,6 +69,7 @@ interface AdminPanelProps {
 
 interface MovieFormData {
   title: string;
+  persianTitle: string;
   slug: string;
   description: string;
   posterUrl: string;
@@ -85,6 +86,7 @@ interface MovieFormData {
 
 const emptyForm: MovieFormData = {
   title: '',
+  persianTitle: '',
   slug: '',
   description: '',
   posterUrl: '',
@@ -166,6 +168,7 @@ export default function AdminPanel({
     setEditingMovie(movie);
     setFormData({
       title: movie.title,
+      persianTitle: movie.persianTitle || '',
       slug: movie.slug,
       description: movie.description || '',
       posterUrl: movie.posterUrl || '',
@@ -465,6 +468,9 @@ export default function AdminPanel({
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-medium text-white truncate">{movie.title}</h3>
+                    {movie.persianTitle && (
+                      <span className="text-xs text-cinematic-muted truncate block">{movie.persianTitle}</span>
+                    )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-cinematic-muted">{movie.year || '—'}</span>
                       <Badge className={cn(
@@ -557,6 +563,17 @@ export default function AdminPanel({
                   className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
                 />
               </div>
+            </div>
+
+            {/* Persian Title */}
+            <div className="space-y-1.5">
+              <Label className="text-cinematic-muted text-sm">عنوان فارسی</Label>
+              <Input
+                value={formData.persianTitle}
+                onChange={(e) => setFormData((p) => ({ ...p, persianTitle: e.target.value }))}
+                placeholder="عنوان فارسی فیلم"
+                className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+              />
             </div>
 
             {/* Description */}

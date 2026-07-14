@@ -1,0 +1,801 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import {
+     6→  Plus,
+     7→  Trash2,
+     8→  Edit,
+     9→  FolderOpen,
+    10→  ArrowRight,
+    11→  Film,
+    12→  Tag,
+    13→  X,
+    14→  Save,
+    15→  AlertTriangle,
+    16→  Upload,
+    17→  Image as ImageIcon,
+    18→} from 'lucide-react';
+    19→import { Button } from '@/components/ui/button';
+    20→import { Input } from '@/components/ui/input';
+    21→import { Textarea } from '@/components/ui/textarea';
+    22→import { Label } from '@/components/ui/label';
+    23→import { Badge } from '@/components/ui/badge';
+    24→import { Checkbox } from '@/components/ui/checkbox';
+    25→import { Skeleton } from '@/components/ui/skeleton';
+    26→import {
+    27→  Dialog,
+    28→  DialogContent,
+    29→  DialogHeader,
+    30→  DialogTitle,
+    31→} from '@/components/ui/dialog';
+    32→import {
+    33→  AlertDialog,
+    34→  AlertDialogAction,
+    35→  AlertDialogCancel,
+    36→  AlertDialogContent,
+    37→  AlertDialogDescription,
+    38→  AlertDialogFooter,
+    39→  AlertDialogHeader,
+    40→  AlertDialogTitle,
+    41→} from '@/components/ui/alert-dialog';
+    42→import {
+    43→  Select,
+    44→  SelectContent,
+    45→  SelectItem,
+    46→  SelectTrigger,
+    47→  SelectValue,
+    48→} from '@/components/ui/select';
+    49→import { useToast } from '@/hooks/use-toast';
+    50→import { cn } from '@/lib/utils';
+    51→import { type Movie, type MovieCategory } from './MovieCard';
+    52→
+    53→interface Category {
+    54→  id: string;
+    55→  name: string;
+    56→  slug: string;
+    57→  type: string;
+    58→  _count?: { movies: number };
+    59→}
+    60→
+    61→interface AdminPanelProps {
+    62→  categories: Category[];
+    63→  movies: Movie[];
+    64→  loading: boolean;
+    65→  onBack: () => void;
+    66→  onDataChange: () => void;
+    67→  onOpenFolder: (movieId: string) => void;
+    68→}
+    69→
+    70→interface MovieFormData {
+    71→  title: string;
+    72→  slug: string;
+    73→  description: string;
+    74→  posterUrl: string;
+    75→  folderPath: string;
+    76→  year: string;
+    77→  ageRating: string;
+    78→  status: string;
+    79→  episodeInfo: string;
+    80→  subType: string;
+    81→  rating: string;
+    82→  featured: boolean;
+    83→  categoryIds: string[];
+    84→}
+    85→
+    86→const emptyForm: MovieFormData = {
+    87→  title: '',
+    88→  slug: '',
+    89→  description: '',
+    90→  posterUrl: '',
+    91→  folderPath: '',
+    92→  year: '',
+    93→  ageRating: '',
+    94→  status: 'completed',
+    95→  episodeInfo: '',
+    96→  subType: '',
+    97→  rating: '',
+    98→  featured: false,
+    99→  categoryIds: [],
+   100→};
+   101→
+   102→const statusLabels: Record<string, string> = {
+   103→  airing: 'در حال پخش',
+   104→  completed: 'تکمیل شده',
+   105→  upcoming: 'آینده',
+   106→};
+   107→
+   108→export default function AdminPanel({
+   109→  categories,
+   110→  movies,
+   111→  loading,
+   112→  onBack,
+   113→  onDataChange,
+   114→  onOpenFolder,
+   115→}: AdminPanelProps) {
+   116→  const { toast } = useToast();
+   117→
+   118→  // Category state
+   119→  const [newCatName, setNewCatName] = useState('');
+   120→  const [newCatSlug, setNewCatSlug] = useState('');
+   121→
+   122→  // Movie form state
+   123→  const [showMovieForm, setShowMovieForm] = useState(false);
+   124→  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
+   125→  const [formData, setFormData] = useState<MovieFormData>(emptyForm);
+   126→  const [formSubmitting, setFormSubmitting] = useState(false);
+   127→
+   128→  // Delete state
+   129→  const [deleteTarget, setDeleteTarget] = useState<{ type: 'movie' | 'category'; id: string; name: string } | null>(null);
+   130→  const [deleting, setDeleting] = useState(false);
+   131→
+   132→  // Auto-generate slug from title
+   133→  const handleTitleChange = (title: string) => {
+   134→    setFormData((prev) => ({
+   135→      ...prev,
+   136→      title,
+   137→      slug: title
+   138→        .toLowerCase()
+   139→        .replace(/\s+/g, '-')
+   140→        .replace(/[^\u0600-\u06FFa-z0-9-]/g, '')
+   141→        .replace(/-+/g, '-')
+   142→        .replace(/^-|-$/g, ''),
+   143→    }));
+   144→  };
+   145→
+   146→  const handleCategorySlugChange = (name: string) => {
+   147→    setNewCatSlug(
+   148→      name
+   149→        .toLowerCase()
+   150→        .replace(/\s+/g, '-')
+   151→        .replace(/[^\u0600-\u06FFa-z0-9-]/g, '')
+   152→        .replace(/-+/g, '-')
+   153→        .replace(/^-|-$/g, '')
+   154→    );
+   155→  };
+   156→
+   157→  // Open form for new movie
+   158→  const openNewMovieForm = () => {
+   159→    setEditingMovie(null);
+   160→    setFormData(emptyForm);
+   161→    setShowMovieForm(true);
+   162→  };
+   163→
+   164→  // Open form for editing
+   165→  const openEditMovieForm = (movie: Movie) => {
+   166→    setEditingMovie(movie);
+   167→    setFormData({
+   168→      title: movie.title,
+   169→      slug: movie.slug,
+   170→      description: movie.description || '',
+   171→      posterUrl: movie.posterUrl || '',
+   172→      folderPath: movie.folderPath || '',
+   173→      year: movie.year?.toString() || '',
+   174→      ageRating: movie.ageRating || '',
+   175→      status: movie.status,
+   176→      episodeInfo: movie.episodeInfo || '',
+   177→      subType: movie.subType || '',
+   178→      rating: movie.rating?.toString() || '',
+   179→      featured: movie.featured || false,
+   180→      categoryIds: movie.categories.map((mc) => mc.categoryId),
+   181→    });
+   182→    setShowMovieForm(true);
+   183→  };
+   184→
+   185→  // Upload poster image
+   186→  const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   187→    const file = e.target.files?.[0];
+   188→    if (!file) return;
+   189→
+   190→    const formDataUpload = new FormData();
+   191→    formDataUpload.append('file', file);
+   192→
+   193→    try {
+   194→      const res = await fetch('/api/upload-poster', {
+   195→        method: 'POST',
+   196→        body: formDataUpload,
+   197→      });
+   198→      const data = await res.json();
+   199→      if (data.url) {
+   200→        setFormData((p) => ({ ...p, posterUrl: data.url }));
+   201→        toast({ title: 'آپلود موفق', description: 'عکس پوستر آپلود شد' });
+   202→      } else {
+   203→        toast({ title: 'خطا', description: data.error || 'آپلود ناموفق', variant: 'destructive' });
+   204→      }
+   205→    } catch {
+   206→      toast({ title: 'خطا', description: 'خطا در آپلود عکس', variant: 'destructive' });
+   207→    }
+   208→    // Reset file input
+   209→    e.target.value = '';
+   210→  };
+   211→
+   212→  // Save movie (create or update)
+   213→  const handleSaveMovie = async () => {
+   214→    if (!formData.title.trim() || !formData.slug.trim()) {
+   215→      toast({ title: 'خطا', description: 'عنوان و اسلاگ الزامی است', variant: 'destructive' });
+   216→      return;
+   217→    }
+   218→    setFormSubmitting(true);
+   219→    try {
+   220→      const url = editingMovie ? `/api/movies/${editingMovie.id}` : '/api/movies';
+   221→      const method = editingMovie ? 'PUT' : 'POST';
+   222→      const body = {
+   223→        ...formData,
+   224→        year: formData.year ? parseInt(formData.year) : null,
+   225→        rating: formData.rating ? parseFloat(formData.rating) : null,
+   226→      };
+   227→      const res = await fetch(url, {
+   228→        method,
+   229→        headers: { 'Content-Type': 'application/json' },
+   230→        body: JSON.stringify(body),
+   231→      });
+   232→      if (!res.ok) {
+   233→        const data = await res.json().catch(() => ({}));
+   234→        throw new Error(data.error || 'خطا در ذخیره فیلم');
+   235→      }
+   236→      toast({ title: editingMovie ? 'فیلم ویرایش شد' : 'فیلم اضافه شد' });
+   237→      setShowMovieForm(false);
+   238→      onDataChange();
+   239→    } catch (err) {
+   240→      toast({
+   241→        title: 'خطا',
+   242→        description: err instanceof Error ? err.message : 'خطای ناشناخته',
+   243→        variant: 'destructive',
+   244→      });
+   245→    } finally {
+   246→      setFormSubmitting(false);
+   247→    }
+   248→  };
+   249→
+   250→  // Delete movie/category
+   251→  const handleDelete = async () => {
+   252→    if (!deleteTarget) return;
+   253→    setDeleting(true);
+   254→    try {
+   255→      const url = deleteTarget.type === 'movie'
+   256→        ? `/api/movies/${deleteTarget.id}`
+   257→        : `/api/categories?id=${deleteTarget.id}`;
+   258→      const res = await fetch(url, { method: 'DELETE' });
+   259→      if (!res.ok) throw new Error('خطا در حذف');
+   260→      toast({ title: 'با موفقیت حذف شد' });
+   261→      setDeleteTarget(null);
+   262→      onDataChange();
+   263→    } catch {
+   264→      toast({ title: 'خطا', description: 'عملیات حذف ناموفق بود', variant: 'destructive' });
+   265→    } finally {
+   266→      setDeleting(false);
+   267→    }
+   268→  };
+   269→
+   270→  // Add category
+   271→  const handleAddCategory = async () => {
+   272→    if (!newCatName.trim() || !newCatSlug.trim()) return;
+   273→    try {
+   274→      const res = await fetch('/api/categories', {
+   275→        method: 'POST',
+   276→        headers: { 'Content-Type': 'application/json' },
+   277→        body: JSON.stringify({ name: newCatName, slug: newCatSlug }),
+   278→      });
+   279→      if (!res.ok) {
+   280→        const data = await res.json().catch(() => ({}));
+   281→        throw new Error(data.error || 'خطا');
+   282→      }
+   283→      toast({ title: 'دسته‌بندی اضافه شد' });
+   284→      setNewCatName('');
+   285→      setNewCatSlug('');
+   286→      onDataChange();
+   287→    } catch (err) {
+   288→      toast({
+   289→        title: 'خطا',
+   290→        description: err instanceof Error ? err.message : 'خطا در افزودن دسته‌بندی',
+   291→        variant: 'destructive',
+   292→      });
+   293→    }
+   294→  };
+   295→
+   296→  // Toggle category in form
+   297→  const toggleCategory = (catId: string) => {
+   298→    setFormData((prev) => ({
+   299→      ...prev,
+   300→      categoryIds: prev.categoryIds.includes(catId)
+   301→        ? prev.categoryIds.filter((id) => id !== catId)
+   302→        : [...prev.categoryIds, catId],
+   303→    }));
+   304→  };
+   305→
+   306→  return (
+   307→    <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-10">
+   308→      {/* Header */}
+   309→      <div className="flex items-center gap-3 mb-8">
+   310→        <Button
+   311→          variant="outline"
+   312→          className="border-cinematic-border bg-cinematic-surface text-cinematic-muted hover:bg-cinematic-card hover:text-white"
+   313→          onClick={onBack}
+   314→        >
+   315→          <ArrowRight className="h-4 w-4 ml-1" />
+   316→          بازگشت به سایت
+   317→        </Button>
+   318→        <div className="flex items-center gap-2">
+   319→          <Film className="h-5 w-5 text-primary" />
+   320→          <h1 className="text-xl font-bold text-white">پنل مدیریت</h1>
+   321→        </div>
+   322→      </div>
+   323→
+   324→      {/* Categories Section */}
+   325→      <motion.section
+   326→        initial={{ opacity: 0, y: 20 }}
+   327→        animate={{ opacity: 1, y: 0 }}
+   328→        className="mb-10"
+   329→      >
+   330→        <div className="flex items-center gap-2 mb-4">
+   331→          <Tag className="h-5 w-5 text-primary" />
+   332→          <h2 className="text-lg font-bold text-white">مدیریت دسته‌بندی‌ها</h2>
+   333→        </div>
+   334→
+   335→        <div className="rounded-xl border border-cinematic-border bg-cinematic-card p-4 space-y-4">
+   336→          {/* Add Category */}
+   337→          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+   338→            <div className="flex-1 space-y-1.5">
+   339→              <Label className="text-cinematic-muted text-sm">نام دسته‌بندی</Label>
+   340→              <Input
+   341→                value={newCatName}
+   342→                onChange={(e) => {
+   343→                  setNewCatName(e.target.value);
+   344→                  if (!newCatSlug) handleCategorySlugChange(e.target.value);
+   345→                }}
+   346→                placeholder="مثلاً: اکشن"
+   347→                className="border-cinematic-border bg-cinematic-surface text-white placeholder:text-cinematic-muted/50"
+   348→              />
+   349→            </div>
+   350→            <div className="flex-1 space-y-1.5">
+   351→              <Label className="text-cinematic-muted text-sm">اسلاگ</Label>
+   352→              <Input
+   353→                value={newCatSlug}
+   354→                onChange={(e) => setNewCatSlug(e.target.value)}
+   355→                placeholder="مثلاً: action"
+   356→                dir="ltr"
+   357→                className="border-cinematic-border bg-cinematic-surface text-white placeholder:text-cinematic-muted/50"
+   358→              />
+   359→            </div>
+   360→            <Button
+   361→              onClick={handleAddCategory}
+   362→              disabled={!newCatName.trim() || !newCatSlug.trim()}
+   363→              className="bg-primary hover:bg-primary/90 text-white h-10 shrink-0"
+   364→            >
+   365→              <Plus className="h-4 w-4 ml-1" />
+   366→              افزودن
+   367→            </Button>
+   368→          </div>
+   369→
+   370→          {/* Category List */}
+   371→          <div className="max-h-48 overflow-y-auto space-y-1.5">
+   372→            {loading ? (
+   373→              Array.from({ length: 4 }).map((_, i) => (
+   374→                <Skeleton key={i} className="h-10 w-full rounded-lg bg-cinematic-surface" />
+   375→              ))
+   376→            ) : (
+   377→              <AnimatePresence>
+   378→                {categories.map((cat) => (
+   379→                  <motion.div
+   380→                    key={cat.id}
+   381→                    initial={{ opacity: 0 }}
+   382→                    animate={{ opacity: 1 }}
+   383→                    exit={{ opacity: 0, x: 20 }}
+   384→                    className="flex items-center justify-between rounded-lg bg-cinematic-surface/50 px-3 py-2"
+   385→                  >
+   386→                    <div className="flex items-center gap-2">
+   387→                      <span className="text-sm text-white">{cat.name}</span>
+   388→                      <Badge variant="outline" className="text-[10px] text-cinematic-muted border-cinematic-border" dir="ltr">
+   389→                        {cat.slug}
+   390→                      </Badge>
+   391→                      <span className="text-[10px] text-cinematic-muted">
+   392→                        ({cat._count?.movies || 0} فیلم)
+   393→                      </span>
+   394→                    </div>
+   395→                    <Button
+   396→                      variant="ghost"
+   397→                      size="icon"
+   398→                      className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+   399→                      onClick={() => setDeleteTarget({ type: 'category', id: cat.id, name: cat.name })}
+   400→                    >
+   401→                      <Trash2 className="h-3.5 w-3.5" />
+   402→                    </Button>
+   403→                  </motion.div>
+   404→                ))}
+   405→              </AnimatePresence>
+   406→            )}
+   407→          </div>
+   408→        </div>
+   409→      </motion.section>
+   410→
+   411→      {/* Movies Section */}
+   412→      <motion.section
+   413→        initial={{ opacity: 0, y: 20 }}
+   414→        animate={{ opacity: 1, y: 0 }}
+   415→        transition={{ delay: 0.1 }}
+   416→      >
+   417→        <div className="flex items-center justify-between mb-4">
+   418→          <div className="flex items-center gap-2">
+   419→            <Film className="h-5 w-5 text-primary" />
+   420→            <h2 className="text-lg font-bold text-white">مدیریت فیلم‌ها</h2>
+   421→            <Badge variant="outline" className="text-xs text-cinematic-muted border-cinematic-border">
+   422→              {movies.length} فیلم
+   423→            </Badge>
+   424→          </div>
+   425→          <Button
+   426→            onClick={openNewMovieForm}
+   427→            className="bg-primary hover:bg-primary/90 text-white"
+   428→          >
+   429→            <Plus className="h-4 w-4 ml-1" />
+   430→            افزودن فیلم
+   431→          </Button>
+   432→        </div>
+   433→
+   434→        {/* Movies List */}
+   435→        <div className="rounded-xl border border-cinematic-border bg-cinematic-card overflow-hidden">
+   436→          {loading ? (
+   437→            <div className="p-4 space-y-3">
+   438→              {Array.from({ length: 4 }).map((_, i) => (
+   439→                <Skeleton key={i} className="h-16 w-full rounded-lg bg-cinematic-surface" />
+   440→              ))}
+   441→            </div>
+   442→          ) : movies.length === 0 ? (
+   443→            <div className="flex flex-col items-center justify-center py-12 text-cinematic-muted">
+   444→              <Film className="h-10 w-10 mb-2 opacity-40" />
+   445→              <p className="text-sm">فیلمی وجود ندارد</p>
+   446→            </div>
+   447→          ) : (
+   448→            <div className="max-h-[500px] overflow-y-auto">
+   449→              {movies.map((movie) => (
+   450→                <motion.div
+   451→                  key={movie.id}
+   452→                  initial={{ opacity: 0 }}
+   453→                  animate={{ opacity: 1 }}
+   454→                  className="flex items-center gap-3 border-b border-cinematic-border last:border-0 px-4 py-3 hover:bg-cinematic-surface/50 transition-colors"
+   455→                >
+   456→                  {/* Thumbnail */}
+   457→                  <div className="shrink-0 h-14 w-10 rounded-lg overflow-hidden bg-cinematic-surface">
+   458→                    {movie.posterUrl ? (
+   459→                      <img src={movie.posterUrl} alt={movie.title} className="h-full w-full object-cover" />
+   460→                    ) : (
+   461→                      <div className="flex h-full w-full items-center justify-center text-lg">🎬</div>
+   462→                    )}
+   463→                  </div>
+   464→
+   465→                  {/* Info */}
+   466→                  <div className="flex-1 min-w-0">
+   467→                    <h3 className="text-sm font-medium text-white truncate">{movie.title}</h3>
+   468→                    <div className="flex items-center gap-2 mt-0.5">
+   469→                      <span className="text-xs text-cinematic-muted">{movie.year || '—'}</span>
+   470→                      <Badge className={cn(
+   471→                        'text-[10px] px-1 py-0',
+   472→                        movie.status === 'airing'
+   473→                          ? 'bg-rose-500/20 text-rose-400 border-0'
+   474→                          : movie.status === 'completed'
+   475→                          ? 'bg-emerald-500/20 text-emerald-400 border-0'
+   476→                          : 'bg-amber-500/20 text-amber-400 border-0'
+   477→                      )}>
+   478→                        {statusLabels[movie.status] || movie.status}
+   479→                      </Badge>
+   480→                    </div>
+   481→                  </div>
+   482→
+   483→                  {/* Actions */}
+   484→                  <div className="flex items-center gap-1 shrink-0">
+   485→                    <Button
+   486→                      variant="ghost"
+   487→                      size="icon"
+   488→                      className="h-8 w-8 text-cinematic-muted hover:text-amber-400 hover:bg-amber-500/10"
+   489→                      onClick={() => onOpenFolder(movie.id)}
+   490→                      title="باز کردن پوشه"
+   491→                    >
+   492→                      <FolderOpen className="h-4 w-4" />
+   493→                    </Button>
+   494→                    <Button
+   495→                      variant="ghost"
+   496→                      size="icon"
+   497→                      className="h-8 w-8 text-cinematic-muted hover:text-primary hover:bg-primary/10"
+   498→                      onClick={() => openEditMovieForm(movie)}
+   499→                      title="ویرایش"
+   500→                    >
+   501→                      <Edit className="h-4 w-4" />
+   502→                    </Button>
+   503→                    <Button
+   504→                      variant="ghost"
+   505→                      size="icon"
+   506→                      className="h-8 w-8 text-cinematic-muted hover:text-red-400 hover:bg-red-500/10"
+   507→                      onClick={() => setDeleteTarget({ type: 'movie', id: movie.id, name: movie.title })}
+   508→                      title="حذف"
+   509→                    >
+   510→                      <Trash2 className="h-4 w-4" />
+   511→                    </Button>
+   512→                  </div>
+   513→                </motion.div>
+   514→              ))}
+   515→            </div>
+   516→          )}
+   517→        </div>
+   518→      </motion.section>
+   519→
+   520→      {/* Movie Form Dialog */}
+   521→      <Dialog open={showMovieForm} onOpenChange={(v) => !v && setShowMovieForm(false)}>
+   522→        <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto border-cinematic-border bg-cinematic-surface p-0">
+   523→          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-cinematic-border bg-cinematic-surface px-6 py-4">
+   524→            <DialogHeader>
+   525→              <DialogTitle className="text-lg font-bold text-white">
+   526→                {editingMovie ? 'ویرایش فیلم' : 'افزودن فیلم جدید'}
+   527→              </DialogTitle>
+   528→            </DialogHeader>
+   529→            <Button
+   530→              variant="ghost"
+   531→              size="icon"
+   532→              className="h-8 w-8 text-cinematic-muted hover:text-white"
+   533→              onClick={() => setShowMovieForm(false)}
+   534→            >
+   535→              <X className="h-4 w-4" />
+   536→            </Button>
+   537→          </div>
+   538→          <div className="p-6 space-y-4">
+   539→            {/* Title & Slug */}
+   540→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   541→              <div className="space-y-1.5">
+   542→                <Label className="text-cinematic-muted text-sm">عنوان *</Label>
+   543→                <Input
+   544→                  value={formData.title}
+   545→                  onChange={(e) => handleTitleChange(e.target.value)}
+   546→                  placeholder="عنوان فیلم"
+   547→                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+   548→                />
+   549→              </div>
+   550→              <div className="space-y-1.5">
+   551→                <Label className="text-cinematic-muted text-sm">اسلاگ *</Label>
+   552→                <Input
+   553→                  value={formData.slug}
+   554→                  onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
+   555→                  placeholder="movie-slug"
+   556→                  dir="ltr"
+   557→                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+   558→                />
+   559→              </div>
+   560→            </div>
+   561→
+   562→            {/* Description */}
+   563→            <div className="space-y-1.5">
+   564→              <Label className="text-cinematic-muted text-sm">توضیحات</Label>
+   565→              <Textarea
+   566→                value={formData.description}
+   567→                onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
+   568→                placeholder="توضیحات فیلم..."
+   569→                rows={3}
+   570→                className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50 resize-none"
+   571→              />
+   572→            </div>
+   573→
+   574→            {/* Poster URL & Folder Path */}
+   575→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   576→              <div className="space-y-1.5">
+   577→                <Label className="text-cinematic-muted text-sm">پوستر فیلم</Label>
+   578→                <div className="flex gap-2">
+   579→                  <Input
+   580→                    value={formData.posterUrl}
+   581→                    onChange={(e) => setFormData((p) => ({ ...p, posterUrl: e.target.value }))}
+   582→                    placeholder="https://... یا فایل رو آپلود کنید"
+   583→                    dir="ltr"
+   584→                    className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+   585→                  />
+   586→                  <label className="cursor-pointer flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-cinematic-accent hover:bg-cinematic-accent-hover text-white text-sm whitespace-nowrap transition-colors">
+   587→                    <Upload className="w-4 h-4" />
+   588→                    انتخاب عکس
+   589→                    <input
+   590→                      type="file"
+   591→                      accept="image/jpeg,image/png,image/webp,image/gif"
+   592→                      className="hidden"
+   593→                      onChange={handlePosterUpload}
+   594→                    />
+   595→                  </label>
+   596→                </div>
+   597→                {formData.posterUrl && (
+   598→                  <div className="mt-2 relative w-20 h-28 rounded-md overflow-hidden border border-cinematic-border">
+   599→                    <img src={formData.posterUrl} alt="پوستر" className="w-full h-full object-cover" />
+   600→                  </div>
+   601→                )}
+   602→              </div>
+   603→              <div className="space-y-1.5">
+   604→                <Label className="text-cinematic-muted text-sm">مسیر پوشه</Label>
+   605→                <Input
+   606→                  value={formData.folderPath}
+   607→                  onChange={(e) => setFormData((p) => ({ ...p, folderPath: e.target.value }))}
+   608→                  placeholder="/path/to/folder"
+   609→                  dir="ltr"
+   610→                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+   611→                />
+   612→              </div>
+   613→            </div>
+   614→
+   615→            {/* Year & Age Rating & Status */}
+   616→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   617→              <div className="space-y-1.5">
+   618→                <Label className="text-cinematic-muted text-sm">سال</Label>
+   619→                <Input
+   620→                  value={formData.year}
+   621→                  onChange={(e) => setFormData((p) => ({ ...p, year: e.target.value }))}
+   622→                  placeholder="2025"
+   623→                  type="number"
+   624→                  dir="ltr"
+   625→                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+   626→                />
+   627→              </div>
+   628→              <div className="space-y-1.5">
+   629→                <Label className="text-cinematic-muted text-sm">رده سنی</Label>
+   630→                <Select
+   631→                  value={formData.ageRating}
+   632→                  onValueChange={(v) => setFormData((p) => ({ ...p, ageRating: v }))}
+   633→                >
+   634→                  <SelectTrigger className="border-cinematic-border bg-cinematic-card text-white">
+   635→                    <SelectValue placeholder="انتخاب کنید" />
+   636→                  </SelectTrigger>
+   637→                  <SelectContent className="border-cinematic-border bg-cinematic-card">
+   638→                    <SelectItem value="7+">7+</SelectItem>
+   639→                    <SelectItem value="13+">13+</SelectItem>
+   640→                    <SelectItem value="16+">16+</SelectItem>
+   641→                    <SelectItem value="18+">18+</SelectItem>
+   642→                  </SelectContent>
+   643→                </Select>
+   644→              </div>
+   645→              <div className="space-y-1.5">
+   646→                <Label className="text-cinematic-muted text-sm">وضعیت</Label>
+   647→                <Select
+   648→                  value={formData.status}
+   649→                  onValueChange={(v) => setFormData((p) => ({ ...p, status: v }))}
+   650→                >
+   651→                  <SelectTrigger className="border-cinematic-border bg-cinematic-card text-white">
+   652→                    <SelectValue />
+   653→                  </SelectTrigger>
+   654→                  <SelectContent className="border-cinematic-border bg-cinematic-card">
+   655→                    <SelectItem value="completed">تکمیل شده</SelectItem>
+   656→                    <SelectItem value="airing">در حال پخش</SelectItem>
+   657→                    <SelectItem value="upcoming">آینده</SelectItem>
+   658→                  </SelectContent>
+   659→                </Select>
+   660→              </div>
+   661→            </div>
+   662→
+   663→            {/* Episode Info & Sub Type & Rating */}
+   664→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   665→              <div className="space-y-1.5">
+   666→                <Label className="text-cinematic-muted text-sm">اطلاعات قسمت</Label>
+   667→                <Input
+   668→                  value={formData.episodeInfo}
+   669→                  onChange={(e) => setFormData((p) => ({ ...p, episodeInfo: e.target.value }))}
+   670→                  placeholder="S1 EP12"
+   671→                  dir="ltr"
+   672→                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+   673→                />
+   674→              </div>
+   675→              <div className="space-y-1.5">
+   676→                <Label className="text-cinematic-muted text-sm">نوع زیرنویس</Label>
+   677→                <Select
+   678→                  value={formData.subType}
+   679→                  onValueChange={(v) => setFormData((p) => ({ ...p, subType: v }))}
+   680→                >
+   681→                  <SelectTrigger className="border-cinematic-border bg-cinematic-card text-white">
+   682→                    <SelectValue placeholder="انتخاب کنید" />
+   683→                  </SelectTrigger>
+   684→                  <SelectContent className="border-cinematic-border bg-cinematic-card">
+   685→                    <SelectItem value="سافت ساب">سافت ساب</SelectItem>
+   686→                    <SelectItem value="دوبله">دوبله</SelectItem>
+   687→                    <SelectItem value="hardsub">هاردساب</SelectItem>
+   688→                  </SelectContent>
+   689→                </Select>
+   690→              </div>
+   691→              <div className="space-y-1.5">
+   692→                <Label className="text-cinematic-muted text-sm">امتیاز (0-10)</Label>
+   693→                <Input
+   694→                  value={formData.rating}
+   695→                  onChange={(e) => setFormData((p) => ({ ...p, rating: e.target.value }))}
+   696→                  placeholder="8.5"
+   697→                  type="number"
+   698→                  min="0"
+   699→                  max="10"
+   700→                  step="0.1"
+   701→                  dir="ltr"
+   702→                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+   703→                />
+   704→              </div>
+   705→            </div>
+   706→
+   707→            {/* Featured */}
+   708→            <div className="flex items-center gap-2">
+   709→              <Checkbox
+   710→                id="featured"
+   711→                checked={formData.featured}
+   712→                onCheckedChange={(v) => setFormData((p) => ({ ...p, featured: !!v }))}
+   713→                className="border-cinematic-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+   714→              />
+   715→              <Label htmlFor="featured" className="text-cinematic-muted text-sm cursor-pointer">
+   716→                نمایش در بخش ویژه (در حال پخش)
+   717→              </Label>
+   718→            </div>
+   719→
+   720→            {/* Categories Multi-Select */}
+   721→            <div className="space-y-2">
+   722→              <Label className="text-cinematic-muted text-sm">دسته‌بندی‌ها</Label>
+   723→              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 rounded-lg border border-cinematic-border bg-cinematic-card">
+   724→                {categories.map((cat) => (
+   725→                  <label
+   726→                    key={cat.id}
+   727→                    className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-cinematic-surface transition-colors"
+   728→                  >
+   729→                    <Checkbox
+   730→                      checked={formData.categoryIds.includes(cat.id)}
+   731→                      onCheckedChange={() => toggleCategory(cat.id)}
+   732→                      className="border-cinematic-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+   733→                    />
+   734→                    <span className="text-sm text-white">{cat.name}</span>
+   735→                  </label>
+   736→                ))}
+   737→              </div>
+   738→            </div>
+   739→
+   740→            {/* Save / Cancel */}
+   741→            <div className="flex items-center justify-end gap-2 pt-2 border-t border-cinematic-border">
+   742→              <Button
+   743→                variant="outline"
+   744→                className="border-cinematic-border bg-cinematic-card text-cinematic-muted hover:text-white hover:bg-cinematic-surface"
+   745→                onClick={() => setShowMovieForm(false)}
+   746→                disabled={formSubmitting}
+   747→              >
+   748→                انصراف
+   749→              </Button>
+   750→              <Button
+   751→                onClick={handleSaveMovie}
+   752→                disabled={formSubmitting || !formData.title.trim() || !formData.slug.trim()}
+   753→                className="bg-primary hover:bg-primary/90 text-white min-w-[120px]"
+   754→              >
+   755→                {formSubmitting ? (
+   756→                  <span className="flex items-center gap-2">
+   757→                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+   758→                    در حال ذخیره...
+   759→                  </span>
+   760→                ) : (
+   761→                  <span className="flex items-center gap-1">
+   762→                    <Save className="h-4 w-4" />
+   763→                    ذخیره
+   764→                  </span>
+   765→                )}
+   766→              </Button>
+   767→            </div>
+   768→          </div>
+   769→        </DialogContent>
+   770→      </Dialog>
+   771→
+   772→      {/* Delete Confirmation */}
+   773→      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+   774→        <AlertDialogContent className="border-cinematic-border bg-cinematic-surface">
+   775→          <AlertDialogHeader>
+   776→            <AlertDialogTitle className="flex items-center gap-2 text-white">
+   777→              <AlertTriangle className="h-5 w-5 text-red-400" />
+   778→              تأیید حذف
+   779→            </AlertDialogTitle>
+   780→            <AlertDialogDescription className="text-cinematic-muted">
+   781→              آیا از حذف <span className="text-white font-medium">{deleteTarget?.name}</span> اطمینان دارید؟
+   782→              این عمل قابل بازگشت نیست.
+   783→            </AlertDialogDescription>
+   784→          </AlertDialogHeader>
+   785→          <AlertDialogFooter>
+   786→            <AlertDialogCancel className="border-cinematic-border bg-cinematic-card text-cinematic-muted hover:text-white hover:bg-cinematic-surface">
+   787→              انصراف
+   788→            </AlertDialogCancel>
+   789→            <AlertDialogAction
+   790→              onClick={handleDelete}
+   791→              disabled={deleting}
+   792→              className="bg-red-500 hover:bg-red-600 text-white"
+   793→            >
+   794→              {deleting ? 'در حال حذف...' : 'حذف'}
+   795→            </AlertDialogAction>
+   796→          </AlertDialogFooter>
+   797→        </AlertDialogContent>
+   798→      </AlertDialog>
+   799→    </div>
+   800→  );
+   801→}
