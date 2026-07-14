@@ -1,30 +1,37 @@
 const { createClient } = require('@libsql/client');
 
 const url = process.argv[2];
+const token = process.argv[3];
 if (!url) {
-  console.error('Usage: node push-turso.js <libsql-url>');
+  console.error('Usage: node push-turso.js <libsql-url> <auth-token>');
   process.exit(1);
 }
 
-const client = createClient({ url });
+const client = createClient({ url, authToken: token });
 
 async function main() {
   console.log('Connecting to Turso...');
 
+  // Drop old tables first to ensure clean schema
+  try { await client.execute(`DROP TABLE IF EXISTS "MovieCategory"`); } catch {}
+  try { await client.execute(`DROP TABLE IF EXISTS "Movie"`); } catch {}
+  try { await client.execute(`DROP TABLE IF EXISTS "Category"`); } catch {}
+  console.log('✓ Old tables dropped');
+
   await client.execute(`
-    CREATE TABLE IF NOT EXISTS "Category" (
+    CREATE TABLE "Category" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "name" TEXT NOT NULL,
       "slug" TEXT NOT NULL,
       "type" TEXT NOT NULL DEFAULT 'movie',
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
   console.log('✓ Category table created');
 
   await client.execute(`
-    CREATE TABLE IF NOT EXISTS "Movie" (
+    CREATE TABLE "Movie" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "title" TEXT NOT NULL,
       "code" TEXT,
@@ -40,14 +47,14 @@ async function main() {
       "rating" REAL,
       "featured" BOOLEAN NOT NULL DEFAULT 0,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "Movie_slug_key" UNIQUE("slug")
     );
   `);
   console.log('✓ Movie table created');
 
   await client.execute(`
-    CREATE TABLE IF NOT EXISTS "MovieCategory" (
+    CREATE TABLE "MovieCategory" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "movieId" TEXT NOT NULL,
       "categoryId" TEXT NOT NULL,
