@@ -8,8 +8,9 @@ export async function GET() {
       include: { _count: { select: { movies: true } } },
     });
     return NextResponse.json(categories);
-  } catch {
-    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
+  } catch (err) {
+    console.error('FETCH CATEGORIES ERROR:', err);
+    return NextResponse.json({ error: 'Failed to fetch categories', detail: String(err) }, { status: 500 });
   }
 }
 
@@ -24,8 +25,9 @@ export async function POST(request: Request) {
       data: { name, slug, type: type || 'movie' },
     });
     return NextResponse.json(category, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
+  } catch (err) {
+    console.error('CREATE CATEGORY ERROR:', err);
+    return NextResponse.json({ error: 'Failed to create category', detail: String(err) }, { status: 500 });
   }
 }
 
@@ -38,7 +40,8 @@ export async function DELETE(request: Request) {
     }
     await db.category.delete({ where: { id } });
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Failed to delete category' }, { status: 500 });
+  } catch (err) {
+    console.error('DELETE CATEGORY ERROR:', err);
+    return NextResponse.json({ error: 'Failed to delete category', detail: String(err) }, { status: 500 });
   }
 }
