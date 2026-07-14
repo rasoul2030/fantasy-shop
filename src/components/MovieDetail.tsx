@@ -72,9 +72,6 @@ export default function MovieDetail({ movie, open, onClose, onOpenFolder }: Movi
                   <DialogTitle className="text-2xl font-bold text-white leading-relaxed">
                     {movie.title}
                   </DialogTitle>
-                  {movie.persianTitle && (
-                    <p className="text-base text-cinematic-muted mt-1">{movie.persianTitle}</p>
-                  )}
                 </DialogHeader>
 
                 {/* Meta Info Row */}

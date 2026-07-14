@@ -18,7 +18,10 @@ export async function GET(request: Request) {
       };
     }
     if (search) {
-      where.title = { contains: search };
+      where.OR = [
+        { title: { contains: search } },
+        { persianTitle: { contains: search } },
+      ];
     }
     if (status) {
       where.status = status;

@@ -468,9 +468,6 @@ export default function AdminPanel({
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-medium text-white truncate">{movie.title}</h3>
-                    {movie.persianTitle && (
-                      <span className="text-xs text-cinematic-muted truncate block">{movie.persianTitle}</span>
-                    )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-cinematic-muted">{movie.year || '—'}</span>
                       <Badge className={cn(
