@@ -69,6 +69,7 @@ interface AdminPanelProps {
 
 interface MovieFormData {
   title: string;
+  code: string;
   slug: string;
   description: string;
   posterUrl: string;
@@ -85,6 +86,7 @@ interface MovieFormData {
 
 const emptyForm: MovieFormData = {
   title: '',
+  code: '',
   slug: '',
   description: '',
   posterUrl: '',
@@ -166,6 +168,7 @@ export default function AdminPanel({
     setEditingMovie(movie);
     setFormData({
       title: movie.title,
+      code: movie.code || '',
       slug: movie.slug,
       description: movie.description || '',
       posterUrl: movie.posterUrl || '',
@@ -536,8 +539,8 @@ export default function AdminPanel({
             </Button>
           </div>
           <div className="p-6 space-y-4">
-            {/* Title & Slug */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Title, Slug & Code */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-cinematic-muted text-sm">عنوان *</Label>
                 <Input
@@ -545,6 +548,16 @@ export default function AdminPanel({
                   onChange={(e) => handleTitleChange(e.target.value)}
                   placeholder="عنوان فیلم"
                   className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-cinematic-muted text-sm">کد</Label>
+                <Input
+                  value={formData.code}
+                  onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))}
+                  placeholder="کد اختصاصی"
+                  dir="ltr"
+                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50 font-mono"
                 />
               </div>
               <div className="space-y-1.5">

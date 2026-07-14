@@ -20,6 +20,7 @@ model Category {
 model Movie {
   id          String   @id @default(cuid())
   title       String
+  code        String?
   slug        String   @unique
   description String?
   posterUrl   String?

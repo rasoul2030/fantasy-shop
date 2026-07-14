@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, slug, description, posterUrl, folderPath, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
+    const { title, code, slug, description, posterUrl, folderPath, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
 
     if (!title || !slug) {
       return NextResponse.json({ error: 'Title and slug are required' }, { status: 400 });
@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     const movie = await db.movie.create({
       data: {
         title,
+        code: code || null,
         slug,
         description: description || null,
         posterUrl: posterUrl || null,

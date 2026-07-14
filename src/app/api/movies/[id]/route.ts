@@ -27,12 +27,13 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, slug, description, posterUrl, folderPath, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
+    const { title, code, slug, description, posterUrl, folderPath, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
 
     const movie = await db.movie.update({
       where: { id },
       data: {
         title,
+        code: code || null,
         slug,
         description: description || null,
         posterUrl: posterUrl || null,

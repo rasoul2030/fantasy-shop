@@ -20,6 +20,7 @@ interface MovieCategory {
 interface Movie {
   id: string;
   title: string;
+  code?: string | null;
   slug: string;
   description?: string | null;
   posterUrl?: string | null;
@@ -118,9 +119,14 @@ export default function MovieCard({ movie, onClick, onOpenFolder, index = 0 }: M
 
           {/* Hover Content */}
           <div className="absolute inset-x-0 bottom-0 translate-y-full transition-transform duration-300 group-hover:translate-y-0 p-3">
-            <h3 className="text-sm font-bold text-white leading-relaxed line-clamp-2 mb-2">
+            <h3 className="text-sm font-bold text-white leading-relaxed line-clamp-2 mb-1">
               {movie.title}
             </h3>
+            {movie.code && (
+              <span className="inline-block text-[10px] font-mono bg-primary/20 text-primary px-1.5 py-0.5 rounded mb-2">
+                {movie.code}
+              </span>
+            )}
             <Button
               size="sm"
               className="w-full bg-primary/90 hover:bg-primary text-white text-xs h-8"
