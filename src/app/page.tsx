@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import CategoryFilter from '@/components/CategoryFilter';
-import FeaturedRow from '@/components/FeaturedRow';
 import MovieGrid from '@/components/MovieGrid';
-import MovieDetail from '@/components/MovieDetail';
-import AdminPanel from '@/components/AdminPanel';
 import { type Movie } from '@/components/MovieCard';
+import dynamic from 'next/dynamic';
+
+const FeaturedRow = dynamic(() => import('@/components/FeaturedRow'), { ssr: false });
+const MovieDetail = dynamic(() => import('@/components/MovieDetail'), { ssr: false });
+const AdminPanel = dynamic(() => import('@/components/AdminPanel'), { ssr: false });
 
 interface Category {
   id: string;
@@ -102,20 +103,25 @@ export default function HomePage() {
   // Initial load
   useEffect(() => {
     fetchCategories();
-  }, [fetchCategories]);
-
-  useEffect(() => {
     fetchMovies();
-  }, [fetchMovies]);
-
-  useEffect(() => {
     fetchFeatured();
-  }, [fetchFeatured]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
   }, [activeCategory, searchQuery, statusFilter]);
+
+  // Fetch movies when filters/page change (skip initial load, handled above)
+  const isInitial = useRef(true);
+  useEffect(() => {
+    if (isInitial.current) {
+      isInitial.current = false;
+      return;
+    }
+    fetchMovies();
+  }, [fetchMovies]);
 
   // Refresh all data
   const refreshData = useCallback(() => {
@@ -201,16 +207,9 @@ export default function HomePage() {
       />
 
       <main className="flex-1">
-        <AnimatePresence mode="wait">
+          <div className={isAdmin ? 'page-view-enter' : 'page-view-enter'}>
           {isAdmin ? (
-            <motion.div
-              key="admin"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
-              className="pt-6"
-            >
+            <div className="pt-6">
               <AdminPanel
                 categories={categories}
                 movies={movies}
@@ -219,15 +218,9 @@ export default function HomePage() {
                 onDataChange={refreshData}
                 onOpenFolder={handleOpenFolder}
               />
-            </motion.div>
+            </div>
           ) : (
-            <motion.div
-              key="main"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-            >
+            <div>
               {/* Category Filter */}
               <CategoryFilter
                 categories={categories}
@@ -274,9 +267,9 @@ export default function HomePage() {
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
               />
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+          </div>
       </main>
 
       {/* Footer */}

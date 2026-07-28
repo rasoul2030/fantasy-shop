@@ -1,6 +1,9 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 30;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -35,7 +38,11 @@ export async function GET(request: Request) {
       db.movie.count({ where }),
     ]);
 
-    return NextResponse.json({ movies, total, page, limit });
+    return NextResponse.json({ movies, total, page, limit }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      },
+    });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch movies' }, { status: 500 });
   }

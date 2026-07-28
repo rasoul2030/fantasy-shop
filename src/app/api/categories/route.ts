@@ -1,13 +1,20 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 60;
+
 export async function GET() {
   try {
     const categories = await db.category.findMany({
       orderBy: { name: 'asc' },
       include: { _count: { select: { movies: true } } },
     });
-    return NextResponse.json(categories);
+    return NextResponse.json(categories, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (err) {
     console.error('FETCH CATEGORIES ERROR:', err);
     return NextResponse.json({ error: 'Failed to fetch categories', detail: String(err) }, { status: 500 });

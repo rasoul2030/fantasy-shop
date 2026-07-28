@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import {
   Plus,
   Trash2,
@@ -377,9 +377,9 @@ export default function AdminPanel({
                 <Skeleton key={i} className="h-10 w-full rounded-lg bg-cinematic-surface" />
               ))
             ) : (
-              <AnimatePresence>
+              
                 {categories.map((cat) => (
-                  <motion.div
+                  <div
                     key={cat.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -403,9 +403,9 @@ export default function AdminPanel({
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                  </motion.div>
+                  </div>
                 ))}
-              </AnimatePresence>
+              
             )}
           </div>
         </div>
@@ -450,7 +450,7 @@ export default function AdminPanel({
           ) : (
             <div className="max-h-[500px] overflow-y-auto">
               {movies.map((movie) => (
-                <motion.div
+                <div
                   key={movie.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -513,7 +513,7 @@ export default function AdminPanel({
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           )}

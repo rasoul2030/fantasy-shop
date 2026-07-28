@@ -4,6 +4,7 @@
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0600-06FF, U+FB50-FDFF, U+FE70-FEFF, U+200C-200E, U+2026, U+0020-007E;
 }
 
 @import "tailwindcss";
@@ -97,40 +98,6 @@
   --sidebar-ring: #8b5cf6;
 }
 
-.dark {
-  --background: #0a0a1a;
-  --foreground: #e2e8f0;
-  --card: #1a1a35;
-  --card-foreground: #e2e8f0;
-  --popover: #0f0f23;
-  --popover-foreground: #e2e8f0;
-  --primary: #8b5cf6;
-  --primary-foreground: #ffffff;
-  --secondary: #1e1e3f;
-  --secondary-foreground: #e2e8f0;
-  --muted: #1e1e3f;
-  --muted-foreground: #94a3b8;
-  --accent: #e94560;
-  --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --border: #1e1e3f;
-  --input: #1e1e3f;
-  --ring: #8b5cf6;
-  --chart-1: #8b5cf6;
-  --chart-2: #e94560;
-  --chart-3: #06b6d4;
-  --chart-4: #f59e0b;
-  --chart-5: #10b981;
-  --sidebar: #0f0f23;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #8b5cf6;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e1e3f;
-  --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: #1e1e3f;
-  --sidebar-ring: #8b5cf6;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -138,6 +105,67 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Performance-optimized animations (replacing framer-motion) */
+@keyframes card-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.movie-card-entrance {
+  animation: card-entrance 0.3s ease-out both;
+}
+
+.detail-fade-in {
+  animation: fade-in 0.2s ease-out both;
+}
+
+.page-view-enter {
+  animation: slide-in-right 0.2s ease-out both;
+}
+
+/* Stagger animation for movie cards using CSS */
+.movie-card-entrance:nth-child(1) { animation-delay: 0ms; }
+.movie-card-entrance:nth-child(2) { animation-delay: 30ms; }
+.movie-card-entrance:nth-child(3) { animation-delay: 60ms; }
+.movie-card-entrance:nth-child(4) { animation-delay: 90ms; }
+.movie-card-entrance:nth-child(5) { animation-delay: 120ms; }
+.movie-card-entrance:nth-child(6) { animation-delay: 150ms; }
+.movie-card-entrance:nth-child(7) { animation-delay: 180ms; }
+.movie-card-entrance:nth-child(8) { animation-delay: 210ms; }
+.movie-card-entrance:nth-child(9) { animation-delay: 240ms; }
+.movie-card-entrance:nth-child(10) { animation-delay: 270ms; }
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .movie-card-entrance,
+  .detail-fade-in,
+  .page-view-enter {
+    animation: none;
   }
 }
 
