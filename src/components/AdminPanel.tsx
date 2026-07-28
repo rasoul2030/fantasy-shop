@@ -325,9 +325,7 @@ export default function AdminPanel({
       </div>
 
       {/* Categories Section */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+      <section
         className="mb-10"
       >
         <div className="flex items-center gap-2 mb-4">
@@ -377,13 +375,10 @@ export default function AdminPanel({
                 <Skeleton key={i} className="h-10 w-full rounded-lg bg-cinematic-surface" />
               ))
             ) : (
-              
+              <>
                 {categories.map((cat) => (
                   <div
                     key={cat.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, x: 20 }}
                     className="flex items-center justify-between rounded-lg bg-cinematic-surface/50 px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
@@ -405,18 +400,14 @@ export default function AdminPanel({
                     </Button>
                   </div>
                 ))}
-              
+              </>
             )}
           </div>
         </div>
-      </motion.section>
+      </section>
 
       {/* Movies Section */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
+      <section>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Film className="h-5 w-5 text-primary" />
@@ -452,8 +443,6 @@ export default function AdminPanel({
               {movies.map((movie) => (
                 <div
                   key={movie.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
                   className="flex items-center gap-3 border-b border-cinematic-border last:border-0 px-4 py-3 hover:bg-cinematic-surface/50 transition-colors"
                 >
                   {/* Thumbnail */}
@@ -518,7 +507,7 @@ export default function AdminPanel({
             </div>
           )}
         </div>
-      </motion.section>
+      </section>
 
       {/* Movie Form Dialog */}
       <Dialog open={showMovieForm} onOpenChange={(v) => !v && setShowMovieForm(false)}>
