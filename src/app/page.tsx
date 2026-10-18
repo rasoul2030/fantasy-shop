@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import CategoryFilter from '@/components/CategoryFilter';
 import ProductGrid from '@/components/ProductGrid';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { type Product } from '@/components/ProductCard';
 import dynamic from 'next/dynamic';
 
@@ -182,8 +183,9 @@ export default function HomePage() {
       />
 
       <main className="flex-1">
-        <div className={isAdmin ? 'page-view-enter' : 'page-view-enter'}>
-          {isAdmin ? (
+        <ErrorBoundary>
+          <div className={isAdmin ? 'page-view-enter' : 'page-view-enter'}>
+            {isAdmin ? (
             <div className="pt-6">
               <AdminPanel
                 categories={categories}
@@ -242,6 +244,7 @@ export default function HomePage() {
             </div>
           )}
         </div>
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}

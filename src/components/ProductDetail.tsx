@@ -1,6 +1,7 @@
 'use client';
 
 import { Star, X, Calendar, Sparkles, ShoppingCart, Hash, Tag } from 'lucide-react';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -49,11 +50,12 @@ export default function ProductDetail({ product, open, onClose }: ProductDetailP
           {/* Banner/Poster Area */}
           <div className="relative h-72 sm:h-80 overflow-hidden">
             {product.posterUrl ? (
-              <img
+              <Image
                 src={product.posterUrl}
                 alt={product.title}
-                decoding="async"
                 sizes="(max-width: 640px) 95vw, 90vw"
+                fill
+                priority
                 className="h-full w-full object-cover"
               />
             ) : (

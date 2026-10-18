@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import { Star, Tag } from 'lucide-react';
+import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -57,12 +58,13 @@ function ProductCard({ product, onClick, index = 0 }: ProductCardProps) {
         {/* Poster */}
         <div className="relative aspect-[2/2.8] overflow-hidden">
           {product.posterUrl ? (
-            <img
+            <Image
               src={product.posterUrl}
               alt={product.title}
-              loading="lazy"
-              decoding="async"
+              loading={index < 10 ? 'eager' : 'lazy'}
+              priority={index < 4}
               sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+              fill
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
           ) : (

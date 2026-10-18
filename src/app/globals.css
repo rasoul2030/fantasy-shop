@@ -138,6 +138,7 @@
 
 .product-card-entrance {
   animation: card-entrance 0.3s ease-out both;
+  contain: layout style;
 }
 
 .detail-fade-in {

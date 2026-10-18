@@ -42,6 +42,9 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  alternates: {
+    canonical: '/',
+  },
 };
 
 export default function RootLayout({
@@ -49,15 +52,28 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Store',
+    name: 'محصولات فانتزی',
+    description: 'فروشگاه آنلاین محصولات فانتزی - آرایشی، عطر، اکسسوری و لوازم تحریر',
+    url: 'https://fantasy-shop.vercel.app',
+  };
+
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning>
       <head>
         <link rel="preload" href="/vazirmatn.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://placehold.co" />
+        <link rel="dns-prefetch" href="https://placehold.co" />
       </head>
       <body className="antialiased">
         {children}
         <Toaster />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </body>
     </html>
   );
