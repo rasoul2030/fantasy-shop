@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { memo } from 'react';
 import { Star, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -46,32 +46,14 @@ const statusLabels: Record<string, string> = {
   upcoming: 'به‌زودی',
 };
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      delay: i * 0.04,
-      duration: 0.4,
-      ease: 'easeOut',
-    },
-  }),
-};
-
-export default function ProductCard({ product, onClick, index = 0 }: ProductCardProps) {
+function ProductCard({ product, onClick, index = 0 }: ProductCardProps) {
   return (
-    <motion.div
-      className="group relative cursor-pointer"
-      custom={index}
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      whileHover={{ y: -8 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+    <div
+      className="group relative cursor-pointer product-card-entrance"
+      style={{ animationDelay: `${index * 40}ms` }}
       onClick={() => onClick(product)}
     >
-      <div className="relative overflow-hidden rounded-xl border border-fantasy-border bg-white shadow-sm transition-all duration-300 group-hover:border-pink-300 group-hover:shadow-lg group-hover:shadow-pink-200/50">
+      <div className="relative overflow-hidden rounded-xl border border-fantasy-border bg-white shadow-sm transition-all duration-300 group-hover:border-pink-300 group-hover:shadow-lg group-hover:shadow-pink-200/50 group-hover:-translate-y-2">
         {/* Poster */}
         <div className="relative aspect-[2/2.8] overflow-hidden">
           {product.posterUrl ? (
@@ -80,6 +62,7 @@ export default function ProductCard({ product, onClick, index = 0 }: ProductCard
               alt={product.title}
               loading="lazy"
               decoding="async"
+              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
           ) : (
@@ -145,8 +128,10 @@ export default function ProductCard({ product, onClick, index = 0 }: ProductCard
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
+
+export default memo(ProductCard);
 
 export type { Product, ProductCategory };

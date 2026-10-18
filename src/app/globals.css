@@ -141,7 +141,15 @@
 }
 
 .detail-fade-in {
-  animation: fade-in 0.2s ease-out both;
+  animation: fade-in 0.25s ease-out both;
+}
+
+.detail-slide-in {
+  animation: slide-in-right 0.3s ease-out 0.15s both;
+}
+
+.detail-content-in {
+  animation: card-entrance 0.4s ease-out 0.1s both;
 }
 
 .page-view-enter {
@@ -164,6 +172,8 @@
 @media (prefers-reduced-motion: reduce) {
   .product-card-entrance,
   .detail-fade-in,
+  .detail-slide-in,
+  .detail-content-in,
   .page-view-enter {
     animation: none;
   }
@@ -188,8 +198,8 @@
   background: #F472B6;
 }
 
-/* Firefox scrollbar */
-* {
+/* Firefox scrollbar - scoped to scrollable elements only */
+html, body, main, nav, [overflow-x-auto], .featured-scroll {
   scrollbar-width: thin;
   scrollbar-color: #F9A8D4 #FFF5F7;
 }

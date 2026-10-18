@@ -87,13 +87,13 @@ export default function HomePage() {
     }
   }, [activeCategory, searchQuery, statusFilter, currentPage]);
 
-  // Fetch featured products
+  // Fetch featured products - server-side filter for featured only
   const fetchFeatured = useCallback(async () => {
     try {
-      const res = await fetch('/api/products?status=available&limit=20&page=1');
+      const res = await fetch('/api/products?status=available&featured=true&limit=10&page=1');
       if (res.ok) {
         const data = await res.json();
-        setFeaturedProducts(data.products.filter((p: Product) => p.featured));
+        setFeaturedProducts(data.products);
       }
     } catch {
       // silent
@@ -129,11 +129,11 @@ export default function HomePage() {
     fetchFeatured();
   }, [fetchCategories, fetchProducts, fetchFeatured]);
 
-  // Handle product card click
-  const handleProductClick = (product: Product) => {
+  // Handle product card click - memoized with useCallback
+  const handleProductClick = useCallback((product: Product) => {
     setSelectedProduct(product);
     setShowDetail(true);
-  };
+  }, []);
 
   // Admin login handler
   const handleAdminLogin = async () => {

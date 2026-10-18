@@ -1,0 +1,713 @@
+    50→import { type Product } from './ProductCard';
+    51→
+    52→interface Category {
+    53→  id: string;
+    54→  name: string;
+    55→  slug: string;
+    56→  type: string;
+    57→  _count?: { products: number };
+    58→}
+    59→
+    60→interface AdminPanelProps {
+    61→  categories: Category[];
+    62→  products: Product[];
+    63→  loading: boolean;
+    64→  onBack: () => void;
+    65→  onDataChange: () => void;
+    66→}
+    67→
+    68→interface ProductFormData {
+    69→  title: string;
+    70→  code: string;
+    71→  slug: string;
+    72→  description: string;
+    73→  posterUrl: string;
+    74→  price: string;
+    75→  year: string;
+    76→  ageRating: string;
+    77→  status: string;
+    78→  episodeInfo: string;
+    79→  subType: string;
+    80→  rating: string;
+    81→  featured: boolean;
+    82→  categoryIds: string[];
+    83→}
+    84→
+    85→const emptyForm: ProductFormData = {
+    86→  title: '',
+    87→  code: '',
+    88→  slug: '',
+    89→  description: '',
+    90→  posterUrl: '',
+    91→  price: '',
+    92→  year: '',
+    93→  ageRating: '',
+    94→  status: 'available',
+    95→  episodeInfo: '',
+    96→  subType: '',
+    97→  rating: '',
+    98→  featured: false,
+    99→  categoryIds: [],
+   100→};
+   101→
+   102→function toSlug(text: string): string {
+   103→  return text
+   104→    .replace(/[\u0600-\u06FF]/g, '')
+   105→    .replace(/[^\w\s-]/g, '')
+   106→    .replace(/\s+/g, '-')
+   107→    .replace(/-+/g, '-')
+   108→    .toLowerCase()
+   109→    .trim() || `product-${Date.now()}`;
+   110→}
+   111→
+   112→export default function AdminPanel({
+   113→  categories,
+   114→  products,
+   115→  loading,
+   116→  onBack,
+   117→  onDataChange,
+   118→}: AdminPanelProps) {
+   119→  const { toast } = useToast();
+   120→  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
+   121→
+   122→  // Product form state
+   123→  const [showProductForm, setShowProductForm] = useState(false);
+   124→  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+   125→  const [formData, setFormData] = useState<ProductFormData>(emptyForm);
+   126→  const [saving, setSaving] = useState(false);
+   127→  const [posterFile, setPosterFile] = useState<File | null>(null);
+   128→  const [posterPreview, setPosterPreview] = useState<string>('');
+   129→
+   130→  // Category form state
+   131→  const [showCategoryForm, setShowCategoryForm] = useState(false);
+   132→  const [catName, setCatName] = useState('');
+   133→  const [catSlug, setCatSlug] = useState('');
+   134→  const [catSaving, setCatSaving] = useState(false);
+   135→
+   136→  // Delete state
+   137→  const [deleteTarget, setDeleteTarget] = useState<{ type: 'product' | 'category'; id: string; name: string } | null>(null);
+   138→  const [deleting, setDeleting] = useState(false);
+   139→
+   140→  // Auto-generate slug from title
+   141→  useEffect(() => {
+   142→    if (formData.title && !editingProduct) {
+   143→      setFormData((prev) => ({ ...prev, slug: toSlug(formData.title) }));
+   144→    }
+   145→  }, [formData.title, editingProduct]);
+   146→
+   147→  // Auto-generate category slug
+   148→  useEffect(() => {
+   149→    if (catName) {
+   150→      setCatSlug(toSlug(catName));
+   151→    }
+   152→  }, [catName]);
+   153→
+   154→  // Poster file handler
+   155→  const handlePosterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   156→    const file = e.target.files?.[0];
+   157→    if (file) {
+   158→      setPosterFile(file);
+   159→      const reader = new FileReader();
+   160→      reader.onload = (ev) => setPosterPreview(ev.target?.result as string);
+   161→      reader.readAsDataURL(file);
+   162→    }
+   163→  };
+   164→
+   165→  // Upload poster
+   166→  const uploadPoster = async (): Promise<string | null> => {
+   167→    if (!posterFile) return formData.posterUrl || null;
+   168→    try {
+   169→      const base64 = posterPreview;
+   170→      const res = await fetch('/api/upload-poster', {
+   171→        method: 'POST',
+   172→        headers: { 'Content-Type': 'application/json' },
+   173→        body: JSON.stringify({ image: base64, filename: posterFile.name }),
+   174→      });
+   175→      if (res.ok) {
+   176→        const data = await res.json();
+   177→        return data.url;
+   178→      }
+   179→    } catch {
+   180→      // fallback to base64
+   181→      return posterPreview;
+   182→    }
+   183→    return null;
+   184→  };
+   185→
+   186→  // Save product
+   187→  const handleSaveProduct = async () => {
+   188→    if (!formData.title.trim()) {
+   189→      toast({ title: 'خطا', description: 'نام محصول الزامی است', variant: 'destructive' });
+   190→      return;
+   191→    }
+   192→    setSaving(true);
+   193→    try {
+   194→      const posterUrl = await uploadPoster();
+   195→      const body = {
+   196→        title: formData.title,
+   197→        code: formData.code || null,
+   198→        slug: formData.slug || toSlug(formData.title),
+   199→        description: formData.description || null,
+   200→        posterUrl: posterUrl || null,
+   201→        price: formData.price || null,
+   202→        year: formData.year ? parseInt(formData.year) : null,
+   203→        ageRating: formData.ageRating || null,
+   204→        status: formData.status || 'available',
+   205→        episodeInfo: formData.episodeInfo || null,
+   206→        subType: formData.subType || null,
+   207→        rating: formData.rating ? parseFloat(formData.rating) : null,
+   208→        featured: formData.featured,
+   209→        categoryIds: formData.categoryIds,
+   210→      };
+   211→
+   212→      const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
+   213→      const method = editingProduct ? 'PUT' : 'POST';
+   214→      const res = await fetch(url, {
+   215→        method,
+   216→        headers: { 'Content-Type': 'application/json' },
+   217→        body: JSON.stringify(body),
+   218→      });
+   219→
+   220→      if (res.ok) {
+   221→        toast({ title: editingProduct ? 'ویرایش شد' : 'اضافه شد', description: 'محصول با موفقیت ذخیره شد' });
+   222→        resetProductForm();
+   223→        onDataChange();
+   224→      } else {
+   225→        const data = await res.json().catch(() => ({}));
+   226→        toast({ title: 'خطا', description: data.error || 'خطا در ذخیره محصول', variant: 'destructive' });
+   227→      }
+   228→    } catch {
+   229→      toast({ title: 'خطا', description: 'خطا در ارتباط با سرور', variant: 'destructive' });
+   230→    } finally {
+   231→      setSaving(false);
+   232→    }
+   233→  };
+   234→
+   235→  // Save category
+   236→  const handleSaveCategory = async () => {
+   237→    if (!catName.trim()) {
+   238→      toast({ title: 'خطا', description: 'نام دسته‌بندی الزامی است', variant: 'destructive' });
+   239→      return;
+   240→    }
+   241→    setCatSaving(true);
+   242→    try {
+   243→      const res = await fetch('/api/categories', {
+   244→        method: 'POST',
+   245→        headers: { 'Content-Type': 'application/json' },
+   246→        body: JSON.stringify({ name: catName, slug: catSlug || toSlug(catName), type: 'product' }),
+   247→      });
+   248→      if (res.ok) {
+   249→        toast({ title: 'اضافه شد', description: 'دسته‌بندی جدید ایجاد شد' });
+   250→        setCatName('');
+   251→        setCatSlug('');
+   252→        setShowCategoryForm(false);
+   253→        onDataChange();
+   254→      } else {
+   255→        const data = await res.json().catch(() => ({}));
+   256→        toast({ title: 'خطا', description: data.error || 'خطا در ایجاد دسته‌بندی', variant: 'destructive' });
+   257→      }
+   258→    } catch {
+   259→      toast({ title: 'خطا', description: 'خطا در ارتباط با سرور', variant: 'destructive' });
+   260→    } finally {
+   261→      setCatSaving(false);
+   262→    }
+   263→  };
+   264→
+   265→  // Delete handler
+   266→  const handleDelete = async () => {
+   267→    if (!deleteTarget) return;
+   268→    setDeleting(true);
+   269→    try {
+   270→      const url = deleteTarget.type === 'product'
+   271→        ? `/api/products/${deleteTarget.id}`
+   272→        : `/api/categories?id=${deleteTarget.id}`;
+   273→      const res = await fetch(url, { method: 'DELETE' });
+   274→      if (res.ok) {
+   275→        toast({ title: 'حذف شد', description: `${deleteTarget.name} حذف شد` });
+   276→        setDeleteTarget(null);
+   277→        onDataChange();
+   278→      } else {
+   279→        toast({ title: 'خطا', description: 'خطا در حذف', variant: 'destructive' });
+   280→      }
+   281→    } catch {
+   282→      toast({ title: 'خطا', description: 'خطا در ارتباط با سرور', variant: 'destructive' });
+   283→    } finally {
+   284→      setDeleting(false);
+   285→    }
+   286→  };
+   287→
+   288→  // Edit product
+   289→  const startEditProduct = (product: Product) => {
+   290→    setEditingProduct(product);
+   291→    setFormData({
+   292→      title: product.title,
+   293→      code: product.code || '',
+   294→      slug: product.slug,
+   295→      description: product.description || '',
+   296→      posterUrl: product.posterUrl || '',
+   297→      price: product.price || '',
+   298→      year: product.year?.toString() || '',
+   299→      ageRating: product.ageRating || '',
+   300→      status: product.status,
+   301→      episodeInfo: product.episodeInfo || '',
+   302→      subType: product.subType || '',
+   303→      rating: product.rating?.toString() || '',
+   304→      featured: product.featured || false,
+   305→      categoryIds: product.categories.map((c) => c.categoryId),
+   306→    });
+   307→    setPosterPreview(product.posterUrl || '');
+   308→    setShowProductForm(true);
+   309→  };
+   310→
+   311→  const resetProductForm = () => {
+   312→    setShowProductForm(false);
+   313→    setEditingProduct(null);
+   314→    setFormData(emptyForm);
+   315→    setPosterFile(null);
+   316→    setPosterPreview('');
+   317→  };
+   318→
+   319→  const toggleCategory = (catId: string) => {
+   320→    setFormData((prev) => ({
+   321→      ...prev,
+   322→      categoryIds: prev.categoryIds.includes(catId)
+   323→        ? prev.categoryIds.filter((id) => id !== catId)
+   324→        : [...prev.categoryIds, catId],
+   325→    }));
+   326→  };
+   327→
+   328→  return (
+   329→    <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+   330→      {/* Header */}
+   331→      <div className="flex items-center justify-between">
+   332→        <div className="flex items-center gap-3">
+   333→          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-100">
+   334→            <ShoppingBag className="h-5 w-5 text-pink-500" />
+   335→          </div>
+   336→          <div>
+   337→            <h2 className="text-xl font-bold text-gray-800">پنل مدیریت</h2>
+   338→            <p className="text-sm text-gray-500">مدیریت محصولات و دسته‌بندی‌ها</p>
+   339→          </div>
+   340→        </div>
+   341→        <Button variant="outline" onClick={onBack} className="border-fantasy-border text-gray-600 hover:bg-pink-50 hover:text-pink-600">
+   342→          <ArrowRight className="h-4 w-4 ml-1" />
+   343→          بازگشت
+   344→        </Button>
+   345→      </div>
+   346→
+   347→      {/* Tabs */}
+   348→      <div className="flex gap-2 border-b border-fantasy-border pb-2">
+   349→        <button
+   350→          onClick={() => setActiveTab('products')}
+   351→          className={cn(
+   352→            'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+   353→            activeTab === 'products'
+   354→              ? 'bg-pink-500 text-white shadow-sm'
+   355→              : 'text-gray-500 hover:bg-pink-50 hover:text-pink-600'
+   356→          )}
+   357→        >
+   358→          محصولات ({products.length})
+   359→        </button>
+   360→        <button
+   361→          onClick={() => setActiveTab('categories')}
+   362→          className={cn(
+   363→            'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+   364→            activeTab === 'categories'
+   365→              ? 'bg-pink-500 text-white shadow-sm'
+   366→              : 'text-gray-500 hover:bg-pink-50 hover:text-pink-600'
+   367→          )}
+   368→        >
+   369→          دسته‌بندی‌ها ({categories.length})
+   370→        </button>
+   371→      </div>
+   372→
+   373→      {/* Products Tab */}
+   374→      {activeTab === 'products' && (
+   375→        <div className="space-y-4">
+   376→          <div className="flex items-center justify-between">
+   377→            <h3 className="text-lg font-bold text-gray-800">محصولات</h3>
+   378→            <Button
+   379→              onClick={() => { resetProductForm(); setShowProductForm(true); }}
+   380→              className="bg-pink-500 hover:bg-pink-600 text-white"
+   381→            >
+   382→              <Plus className="h-4 w-4 ml-1" />
+   383→              محصول جدید
+   384→            </Button>
+   385→          </div>
+   386→
+   387→          {/* Product List */}
+   388→          {loading ? (
+   389→            <div className="space-y-3">
+   390→              {Array.from({ length: 5 }).map((_, i) => (
+   391→                <Skeleton key={i} className="h-16 w-full rounded-lg bg-pink-50" />
+   392→              ))}
+   393→            </div>
+   394→          ) : products.length === 0 ? (
+   395→            <div className="text-center py-12 text-gray-400">
+   396→              <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-50" />
+   397→              <p>محصولی وجود ندارد</p>
+   398→            </div>
+   399→          ) : (
+   400→            <div className="space-y-2">
+   401→              {products.map((product) => (
+   402→                <div
+   403→                  key={product.id}
+   404→                  className="flex items-center gap-3 p-3 rounded-xl border border-fantasy-border bg-white hover:bg-pink-50/50 transition-colors"
+   405→                >
+   406→                  <div className="h-12 w-12 rounded-lg overflow-hidden bg-pink-50 shrink-0">
+   407→                    {product.posterUrl ? (
+   408→                      <img src={product.posterUrl} alt={product.title} className="h-full w-full object-cover" />
+   409→                    ) : (
+   410→                      <div className="h-full w-full flex items-center justify-center text-lg">✨</div>
+   411→                    )}
+   412→                  </div>
+   413→                  <div className="flex-1 min-w-0">
+   414→                    <h4 className="text-sm font-bold text-gray-800 truncate">{product.title}</h4>
+   415→                    <div className="flex items-center gap-2 mt-1">
+   416→                      {product.price && (
+   417→                        <Badge className="bg-pink-100 text-pink-600 text-[10px] border-0">{product.price}</Badge>
+   418→                      )}
+   419→                      <Badge className="bg-gray-100 text-gray-500 text-[10px] border-0">
+   420→                        {product.status === 'available' ? 'موجود' : product.status === 'unavailable' ? 'ناموجود' : 'به‌زودی'}
+   421→                      </Badge>
+   422→                      {product.categories.slice(0, 2).map((c) => (
+   423→                        <Badge key={c.id} variant="outline" className="border-pink-200 text-pink-500 text-[10px]">
+   424→                          {c.category.name}
+   425→                        </Badge>
+   426→                      ))}
+   427→                    </div>
+   428→                  </div>
+   429→                  <div className="flex items-center gap-1 shrink-0">
+   430→                    <Button
+   431→                      variant="ghost"
+   432→                      size="icon"
+   433→                      className="h-8 w-8 text-gray-400 hover:text-pink-600 hover:bg-pink-50"
+   434→                      onClick={() => startEditProduct(product)}
+   435→                    >
+   436→                      <Edit className="h-3.5 w-3.5" />
+   437→                    </Button>
+   438→                    <Button
+   439→                      variant="ghost"
+   440→                      size="icon"
+   441→                      className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50"
+   442→                      onClick={() => setDeleteTarget({ type: 'product', id: product.id, name: product.title })}
+   443→                    >
+   444→                      <Trash2 className="h-3.5 w-3.5" />
+   445→                    </Button>
+   446→                  </div>
+   447→                </div>
+   448→              ))}
+   449→            </div>
+   450→          )}
+   451→        </div>
+   452→      )}
+   453→
+   454→      {/* Categories Tab */}
+   455→      {activeTab === 'categories' && (
+   456→        <div className="space-y-4">
+   457→          <div className="flex items-center justify-between">
+   458→            <h3 className="text-lg font-bold text-gray-800">دسته‌بندی‌ها</h3>
+   459→            <Button
+   460→              onClick={() => setShowCategoryForm(true)}
+   461→              className="bg-pink-500 hover:bg-pink-600 text-white"
+   462→            >
+   463→              <Plus className="h-4 w-4 ml-1" />
+   464→              دسته‌بندی جدید
+   465→            </Button>
+   466→          </div>
+   467→
+   468→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   469→            {categories.map((cat) => (
+   470→              <div
+   471→                key={cat.id}
+   472→                className="flex items-center gap-3 p-3 rounded-xl border border-fantasy-border bg-white hover:bg-pink-50/50 transition-colors"
+   473→              >
+   474→                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-100 shrink-0">
+   475→                  <Tag className="h-4 w-4 text-pink-500" />
+   476→                </div>
+   477→                <div className="flex-1">
+   478→                  <h4 className="text-sm font-bold text-gray-800">{cat.name}</h4>
+   479→                  <p className="text-xs text-gray-400">{cat._count?.products || 0} محصول</p>
+   480→                </div>
+   481→                <Button
+   482→                  variant="ghost"
+   483→                  size="icon"
+   484→                  className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50"
+   485→                  onClick={() => setDeleteTarget({ type: 'category', id: cat.id, name: cat.name })}
+   486→                >
+   487→                  <Trash2 className="h-3.5 w-3.5" />
+   488→                </Button>
+   489→              </div>
+   490→            ))}
+   491→          </div>
+   492→
+   493→          {categories.length === 0 && (
+   494→            <div className="text-center py-12 text-gray-400">
+   495→              <Tag className="h-12 w-12 mx-auto mb-3 opacity-50" />
+   496→              <p>دسته‌بندی وجود ندارد</p>
+   497→            </div>
+   498→          )}
+   499→        </div>
+   500→      )}
+   501→
+   502→      {/* Product Form Dialog */}
+   503→      <Dialog open={showProductForm} onOpenChange={(v) => !v && resetProductForm()}>
+   504→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto border-fantasy-border bg-white">
+   505→          <DialogHeader>
+   506→            <DialogTitle className="text-gray-800">
+   507→              {editingProduct ? 'ویرایش محصول' : 'محصول جدید'}
+   508→            </DialogTitle>
+   509→          </DialogHeader>
+   510→
+   511→          <div className="space-y-4 mt-4">
+   512→            {/* Title */}
+   513→            <div className="space-y-1.5">
+   514→              <Label className="text-gray-700 text-sm">نام محصول *</Label>
+   515→              <Input
+   516→                value={formData.title}
+   517→                onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+   518→                placeholder="مثلاً: رژ لب مات رز"
+   519→                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   520→              />
+   521→            </div>
+   522→
+   523→            {/* Code & Price */}
+   524→            <div className="grid grid-cols-2 gap-3">
+   525→              <div className="space-y-1.5">
+   526→                <Label className="text-gray-700 text-sm">کد محصول</Label>
+   527→                <Input
+   528→                  value={formData.code}
+   529→                  onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))}
+   530→                  placeholder="SKU"
+   531→                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   532→                />
+   533→              </div>
+   534→              <div className="space-y-1.5">
+   535→                <Label className="text-gray-700 text-sm">قیمت</Label>
+   536→                <Input
+   537→                  value={formData.price}
+   538→                  onChange={(e) => setFormData((p) => ({ ...p, price: e.target.value }))}
+   539→                  placeholder="مثلاً: ۱۵۰,۰۰۰ تومان"
+   540→                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   541→                />
+   542→              </div>
+   543→            </div>
+   544→
+   545→            {/* Slug */}
+   546→            <div className="space-y-1.5">
+   547→              <Label className="text-gray-700 text-sm">اسلاگ</Label>
+   548→              <Input
+   549→                value={formData.slug}
+   550→                onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
+   551→                placeholder="auto-generated"
+   552→                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   553→              />
+   554→            </div>
+   555→
+   556→            {/* Description */}
+   557→            <div className="space-y-1.5">
+   558→              <Label className="text-gray-700 text-sm">توضیحات</Label>
+   559→              <Textarea
+   560→                value={formData.description}
+   561→                onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
+   562→                placeholder="توضیحات محصول..."
+   563→                rows={3}
+   564→                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   565→              />
+   566→            </div>
+   567→
+   568→            {/* Poster Upload */}
+   569→            <div className="space-y-1.5">
+   570→              <Label className="text-gray-700 text-sm">تصویر محصول</Label>
+   571→              <div className="flex items-center gap-3">
+   572→                <label className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-fantasy-border bg-pink-50 cursor-pointer hover:border-pink-300 transition-colors overflow-hidden">
+   573→                  {posterPreview ? (
+   574→                    <img src={posterPreview} alt="preview" className="h-full w-full object-cover" />
+   575→                  ) : (
+   576→                    <ImageIcon className="h-6 w-6 text-pink-300" />
+   577→                  )}
+   578→                  <input type="file" accept="image/*" className="hidden" onChange={handlePosterChange} />
+   579→                </label>
+   580→                {posterPreview && (
+   581→                  <Button
+   582→                    variant="ghost"
+   583→                    size="sm"
+   584→                    className="text-gray-400 hover:text-red-500"
+   585→                    onClick={() => { setPosterPreview(''); setPosterFile(null); setFormData((p) => ({ ...p, posterUrl: '' })); }}
+   586→                  >
+   587→                    <X className="h-3.5 w-3.5 ml-1" />
+   588→                    حذف
+   589→                  </Button>
+   590→                )}
+   591→              </div>
+   592→            </div>
+   593→
+   594→            {/* Status & SubType */}
+   595→            <div className="grid grid-cols-2 gap-3">
+   596→              <div className="space-y-1.5">
+   597→                <Label className="text-gray-700 text-sm">وضعیت</Label>
+   598→                <Select value={formData.status} onValueChange={(v) => setFormData((p) => ({ ...p, status: v }))}>
+   599→                  <SelectTrigger className="border-fantasy-border bg-white text-gray-800">
+   600→                    <SelectValue />
+   601→                  </SelectTrigger>
+   602→                  <SelectContent className="bg-white">
+   603→                    <SelectItem value="available">موجود</SelectItem>
+   604→                    <SelectItem value="unavailable">ناموجود</SelectItem>
+   605→                    <SelectItem value="upcoming">به‌زودی</SelectItem>
+   606→                  </SelectContent>
+   607→                </Select>
+   608→              </div>
+   609→              <div className="space-y-1.5">
+   610→                <Label className="text-gray-700 text-sm">نوع</Label>
+   611→                <Input
+   612→                  value={formData.subType}
+   613→                  onChange={(e) => setFormData((p) => ({ ...p, subType: e.target.value }))}
+   614→                  placeholder="مثلاً: اورجینال"
+   615→                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   616→                />
+   617→              </div>
+   618→            </div>
+   619→
+   620→            {/* Rating & Year */}
+   621→            <div className="grid grid-cols-2 gap-3">
+   622→              <div className="space-y-1.5">
+   623→                <Label className="text-gray-700 text-sm">امتیاز</Label>
+   624→                <Input
+   625→                  type="number"
+   626→                  value={formData.rating}
+   627→                  onChange={(e) => setFormData((p) => ({ ...p, rating: e.target.value }))}
+   628→                  placeholder="0-10"
+   629→                  min="0"
+   630→                  max="10"
+   631→                  step="0.1"
+   632→                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   633→                />
+   634→              </div>
+   635→              <div className="space-y-1.5">
+   636→                <Label className="text-gray-700 text-sm">سال</Label>
+   637→                <Input
+   638→                  type="number"
+   639→                  value={formData.year}
+   640→                  onChange={(e) => setFormData((p) => ({ ...p, year: e.target.value }))}
+   641→                  placeholder="2024"
+   642→                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   643→                />
+   644→              </div>
+   645→            </div>
+   646→
+   647→            {/* Featured */}
+   648→            <div className="flex items-center gap-2">
+   649→              <Checkbox
+   650→                id="featured"
+   651→                checked={formData.featured}
+   652→                onCheckedChange={(v) => setFormData((p) => ({ ...p, featured: !!v }))}
+   653→                className="border-pink-300 data-[state=checked]:bg-pink-500 data-[state=checked]:border-pink-500"
+   654→              />
+   655→              <Label htmlFor="featured" className="text-gray-700 text-sm cursor-pointer">محصول ویژه</Label>
+   656→            </div>
+   657→
+   658→            {/* Categories */}
+   659→            {categories.length > 0 && (
+   660→              <div className="space-y-2">
+   661→                <Label className="text-gray-700 text-sm">دسته‌بندی‌ها</Label>
+   662→                <div className="flex flex-wrap gap-2">
+   663→                  {categories.map((cat) => (
+   664→                    <button
+   665→                      key={cat.id}
+   666→                      type="button"
+   667→                      onClick={() => toggleCategory(cat.id)}
+   668→                      className={cn(
+   669→                        'rounded-full px-3 py-1.5 text-xs font-medium transition-all',
+   670→                        formData.categoryIds.includes(cat.id)
+   671→                          ? 'bg-pink-500 text-white'
+   672→                          : 'bg-pink-50 text-pink-400 border border-fantasy-border hover:bg-pink-100'
+   673→                      )}
+   674→                    >
+   675→                      {cat.name}
+   676→                    </button>
+   677→                  ))}
+   678→                </div>
+   679→              </div>
+   680→            )}
+   681→
+   682→            {/* Save Button */}
+   683→            <Button
+   684→              onClick={handleSaveProduct}
+   685→              disabled={saving}
+   686→              className="w-full bg-pink-500 hover:bg-pink-600 text-white h-11"
+   687→            >
+   688→              {saving ? '...' : (
+   689→                <>
+   690→                  <Save className="h-4 w-4 ml-1" />
+   691→                  {editingProduct ? 'ذخیره تغییرات' : 'اضافه کردن محصول'}
+   692→                </>
+   693→              )}
+   694→            </Button>
+   695→          </div>
+   696→        </DialogContent>
+   697→      </Dialog>
+   698→
+   699→      {/* Category Form Dialog */}
+   700→      <Dialog open={showCategoryForm} onOpenChange={setShowCategoryForm}>
+   701→        <DialogContent className="max-w-sm border-fantasy-border bg-white">
+   702→          <DialogHeader>
+   703→            <DialogTitle className="text-gray-800">دسته‌بندی جدید</DialogTitle>
+   704→          </DialogHeader>
+   705→          <div className="space-y-4 mt-4">
+   706→            <div className="space-y-1.5">
+   707→              <Label className="text-gray-700 text-sm">نام دسته‌بندی</Label>
+   708→              <Input
+   709→                value={catName}
+   710→                onChange={(e) => setCatName(e.target.value)}
+   711→                placeholder="مثلاً: آرایشی"
+   712→                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   713→              />
+   714→            </div>
+   715→            <div className="space-y-1.5">
+   716→              <Label className="text-gray-700 text-sm">اسلاگ</Label>
+   717→              <Input
+   718→                value={catSlug}
+   719→                onChange={(e) => setCatSlug(e.target.value)}
+   720→                placeholder="auto-generated"
+   721→                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+   722→              />
+   723→            </div>
+   724→            <Button
+   725→              onClick={handleSaveCategory}
+   726→              disabled={catSaving}
+   727→              className="w-full bg-pink-500 hover:bg-pink-600 text-white"
+   728→            >
+   729→              {catSaving ? '...' : 'اضافه کردن'}
+   730→            </Button>
+   731→          </div>
+   732→        </DialogContent>
+   733→      </Dialog>
+   734→
+   735→      {/* Delete Confirmation */}
+   736→      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+   737→        <AlertDialogContent className="bg-white">
+   738→          <AlertDialogHeader>
+   739→            <AlertDialogTitle className="text-gray-800 flex items-center gap-2">
+   740→              <AlertTriangle className="h-5 w-5 text-red-500" />
+   741→              حذف {deleteTarget?.type === 'product' ? 'محصول' : 'دسته‌بندی'}
+   742→            </AlertDialogTitle>
+   743→            <AlertDialogDescription className="text-gray-600">
+   744→              آیا مطمئنید که &laquo;{deleteTarget?.name}&raquo; را می‌خواهید حذف کنید؟ این عمل غیرقابل برگشت است.
+   745→            </AlertDialogDescription>
+   746→          </AlertDialogHeader>
+   747→          <AlertDialogFooter>
+   748→            <AlertDialogCancel className="border-fantasy-border text-gray-600">انصراف</AlertDialogCancel>
+   749→            <AlertDialogAction
+   750→              onClick={handleDelete}
+   751→              disabled={deleting}
+   752→              className="bg-red-500 hover:bg-red-600 text-white"
+   753→            >
+   754→              {deleting ? '...' : 'حذف'}
+   755→            </AlertDialogAction>
+   756→          </AlertDialogFooter>
+   757→        </AlertDialogContent>
+   758→      </AlertDialog>
+   759→    </div>
+   760→  );
+   761→}
+   762→

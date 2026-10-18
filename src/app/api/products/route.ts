@@ -1,7 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
 export const revalidate = 30;
 
 export async function GET(request: Request) {
@@ -10,6 +9,7 @@ export async function GET(request: Request) {
     const categorySlug = searchParams.get('category');
     const search = searchParams.get('search');
     const status = searchParams.get('status');
+    const featured = searchParams.get('featured');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
@@ -25,6 +25,9 @@ export async function GET(request: Request) {
     }
     if (status) {
       where.status = status;
+    }
+    if (featured === 'true') {
+      where.featured = true;
     }
 
     const [products, total] = await Promise.all([
