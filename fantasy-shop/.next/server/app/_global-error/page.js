@@ -1,0 +1,10 @@
+var R=require("../../chunks/ssr/[turbopack]_runtime.js")("server/app/_global-error/page.js")
+R.c("server/chunks/ssr/[root-of-the-server]__1w-cz1ov5qvuo._.js")
+R.c("server/chunks/ssr/07e0_next_dist_esm_build_templates_app-page_1ohgppo_i89jr.js")
+R.c("server/chunks/ssr/07e0_next_dist_1bv1m2n901g89._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0uet-42vhzmoi._.js")
+R.c("server/chunks/ssr/07e0_0dx43t-jgxr_b._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0jkihxiq0oq79._.js")
+R.c("server/chunks/ssr/fantasy-shop__next-internal_server_app__global-error_page_actions_0lvzj_caogqq3.js")
+R.m(3658)
+module.exports=R.m(3658).exports

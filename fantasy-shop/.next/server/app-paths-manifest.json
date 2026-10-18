@@ -1,0 +1,13 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/admin-auth/route": "app/api/admin-auth/route.js",
+  "/api/categories/route": "app/api/categories/route.js",
+  "/api/movies/[id]/route": "app/api/movies/[id]/route.js",
+  "/api/movies/open-folder/route": "app/api/movies/open-folder/route.js",
+  "/api/movies/route": "app/api/movies/route.js",
+  "/api/route": "app/api/route.js",
+  "/api/seed/route": "app/api/seed/route.js",
+  "/api/upload-poster/route": "app/api/upload-poster/route.js",
+  "/page": "app/page.js"
+}
