@@ -1,7 +1,6 @@
 {
-  "buildCommand": "prisma generate && next build",
+  "buildCommand": "npx prisma generate && next build",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["iad1"],
-  "crons": []
+  "regions": ["iad1"]
 }
