@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { Star, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -45,14 +46,32 @@ const statusLabels: Record<string, string> = {
   upcoming: 'به‌زودی',
 };
 
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: i * 0.04,
+      duration: 0.4,
+      ease: 'easeOut',
+    },
+  }),
+};
+
 export default function ProductCard({ product, onClick, index = 0 }: ProductCardProps) {
   return (
-    <div
-      className="group relative cursor-pointer product-card-entrance"
-      style={{ animationDelay: `${index * 30}ms` }}
+    <motion.div
+      className="group relative cursor-pointer"
+      custom={index}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover={{ y: -8 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       onClick={() => onClick(product)}
     >
-      <div className="relative overflow-hidden rounded-xl border border-fantasy-border bg-white shadow-sm transition-all duration-300 group-hover:border-pink-300 group-hover:shadow-lg group-hover:shadow-pink-200/50 group-hover:-translate-y-2">
+      <div className="relative overflow-hidden rounded-xl border border-fantasy-border bg-white shadow-sm transition-all duration-300 group-hover:border-pink-300 group-hover:shadow-lg group-hover:shadow-pink-200/50">
         {/* Poster */}
         <div className="relative aspect-[2/2.8] overflow-hidden">
           {product.posterUrl ? (
@@ -64,7 +83,7 @@ export default function ProductCard({ product, onClick, index = 0 }: ProductCard
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-pink-50">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-pink-50 to-pink-100">
               <span className="text-4xl">✨</span>
             </div>
           )}
@@ -75,7 +94,7 @@ export default function ProductCard({ product, onClick, index = 0 }: ProductCard
           {/* Top Badges */}
           <div className="absolute top-2 right-2 left-2 flex items-start justify-between">
             {product.price && (
-              <Badge className="bg-pink-500 text-white text-[10px] px-2 py-0.5 border-0 backdrop-blur-sm font-bold">
+              <Badge className="bg-pink-500 text-white text-[10px] px-2 py-0.5 border-0 backdrop-blur-sm font-bold shadow-sm">
                 {product.price}
               </Badge>
             )}
@@ -126,7 +145,7 @@ export default function ProductCard({ product, onClick, index = 0 }: ProductCard
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
