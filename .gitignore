@@ -80,3 +80,28 @@ Caddyfile
 
 # Scripts directory
 scripts/
+
+# Tool results
+tool-results/
+
+# Uploads
+upload/
+
+# Worklog
+worklog*.json
+worklog.md
+
+# Batch files (Windows)
+*.bat
+
+# Screenshots
+screenshot-*.png
+
+# Proxy server
+proxy-server.js
+
+# Mini-services
+mini-services/
+
+# Package lock (using bun)
+package-lock.json
