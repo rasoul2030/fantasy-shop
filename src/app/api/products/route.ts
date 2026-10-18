@@ -27,47 +27,47 @@ export async function GET(request: Request) {
       where.status = status;
     }
 
-    const [movies, total] = await Promise.all([
-      db.movie.findMany({
+    const [products, total] = await Promise.all([
+      db.product.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: { categories: { include: { category: true } } },
       }),
-      db.movie.count({ where }),
+      db.product.count({ where }),
     ]);
 
-    return NextResponse.json({ movies, total, page, limit }, {
+    return NextResponse.json({ products, total, page, limit }, {
       headers: {
         'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
       },
     });
   } catch {
-    return NextResponse.json({ error: 'Failed to fetch movies' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, code, slug, description, posterUrl, folderPath, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
+    const { title, code, slug, description, posterUrl, price, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
 
     if (!title || !slug) {
       return NextResponse.json({ error: 'Title and slug are required' }, { status: 400 });
     }
 
-    const movie = await db.movie.create({
+    const product = await db.product.create({
       data: {
         title,
         code: code || null,
         slug,
         description: description || null,
         posterUrl: posterUrl || null,
-        folderPath: folderPath || null,
+        price: price || null,
         year: year || null,
         ageRating: ageRating || null,
-        status: status || 'completed',
+        status: status || 'available',
         episodeInfo: episodeInfo || null,
         subType: subType || null,
         rating: rating || null,
@@ -81,9 +81,9 @@ export async function POST(request: Request) {
       include: { categories: { include: { category: true } } },
     });
 
-    return NextResponse.json(movie, { status: 201 });
+    return NextResponse.json(product, { status: 201 });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Failed to create movie';
+    const msg = error instanceof Error ? error.message : 'Failed to create product';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

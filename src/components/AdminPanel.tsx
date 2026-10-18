@@ -6,9 +6,8 @@ import {
   Plus,
   Trash2,
   Edit,
-  FolderOpen,
   ArrowRight,
-  Film,
+  ShoppingBag,
   Tag,
   X,
   Save,
@@ -48,32 +47,31 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { type Movie, type MovieCategory } from './MovieCard';
+import { type Product } from './ProductCard';
 
 interface Category {
   id: string;
   name: string;
   slug: string;
   type: string;
-  _count?: { movies: number };
+  _count?: { products: number };
 }
 
 interface AdminPanelProps {
   categories: Category[];
-  movies: Movie[];
+  products: Product[];
   loading: boolean;
   onBack: () => void;
   onDataChange: () => void;
-  onOpenFolder: (movieId: string) => void;
 }
 
-interface MovieFormData {
+interface ProductFormData {
   title: string;
   code: string;
   slug: string;
   description: string;
   posterUrl: string;
-  folderPath: string;
+  price: string;
   year: string;
   ageRating: string;
   status: string;
@@ -84,16 +82,16 @@ interface MovieFormData {
   categoryIds: string[];
 }
 
-const emptyForm: MovieFormData = {
+const emptyForm: ProductFormData = {
   title: '',
   code: '',
   slug: '',
   description: '',
   posterUrl: '',
-  folderPath: '',
+  price: '',
   year: '',
   ageRating: '',
-  status: 'completed',
+  status: 'available',
   episodeInfo: '',
   subType: '',
   rating: '',
@@ -101,202 +99,223 @@ const emptyForm: MovieFormData = {
   categoryIds: [],
 };
 
-const statusLabels: Record<string, string> = {
-  airing: 'در حال پخش',
-  completed: 'تکمیل شده',
-  upcoming: 'آینده',
-};
+function toSlug(text: string): string {
+  return text
+    .replace(/[\u0600-\u06FF]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .toLowerCase()
+    .trim() || `product-${Date.now()}`;
+}
 
 export default function AdminPanel({
   categories,
-  movies,
+  products,
   loading,
   onBack,
   onDataChange,
-  onOpenFolder,
 }: AdminPanelProps) {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
 
-  // Category state
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatSlug, setNewCatSlug] = useState('');
+  // Product form state
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formData, setFormData] = useState<ProductFormData>(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [posterPreview, setPosterPreview] = useState<string>('');
 
-  // Movie form state
-  const [showMovieForm, setShowMovieForm] = useState(false);
-  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
-  const [formData, setFormData] = useState<MovieFormData>(emptyForm);
-  const [formSubmitting, setFormSubmitting] = useState(false);
+  // Category form state
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [catName, setCatName] = useState('');
+  const [catSlug, setCatSlug] = useState('');
+  const [catSaving, setCatSaving] = useState(false);
 
   // Delete state
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'movie' | 'category'; id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'product' | 'category'; id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // Auto-generate slug from title
-  const handleTitleChange = (title: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      title,
-      slug: title
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\u0600-\u06FFa-z0-9-]/g, '')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, ''),
-    }));
-  };
+  useEffect(() => {
+    if (formData.title && !editingProduct) {
+      setFormData((prev) => ({ ...prev, slug: toSlug(formData.title) }));
+    }
+  }, [formData.title, editingProduct]);
 
-  const handleCategorySlugChange = (name: string) => {
-    setNewCatSlug(
-      name
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\u0600-\u06FFa-z0-9-]/g, '')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-    );
-  };
+  // Auto-generate category slug
+  useEffect(() => {
+    if (catName) {
+      setCatSlug(toSlug(catName));
+    }
+  }, [catName]);
 
-  // Open form for new movie
-  const openNewMovieForm = () => {
-    setEditingMovie(null);
-    setFormData(emptyForm);
-    setShowMovieForm(true);
-  };
-
-  // Open form for editing
-  const openEditMovieForm = (movie: Movie) => {
-    setEditingMovie(movie);
-    setFormData({
-      title: movie.title,
-      code: movie.code || '',
-      slug: movie.slug,
-      description: movie.description || '',
-      posterUrl: movie.posterUrl || '',
-      folderPath: movie.folderPath || '',
-      year: movie.year?.toString() || '',
-      ageRating: movie.ageRating || '',
-      status: movie.status,
-      episodeInfo: movie.episodeInfo || '',
-      subType: movie.subType || '',
-      rating: movie.rating?.toString() || '',
-      featured: movie.featured || false,
-      categoryIds: movie.categories.map((mc) => mc.categoryId),
-    });
-    setShowMovieForm(true);
-  };
-
-  // Upload poster image
-  const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Poster file handler
+  const handlePosterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) {
+      setPosterFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setPosterPreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
 
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
-
+  // Upload poster
+  const uploadPoster = async (): Promise<string | null> => {
+    if (!posterFile) return formData.posterUrl || null;
     try {
+      const base64 = posterPreview;
       const res = await fetch('/api/upload-poster', {
         method: 'POST',
-        body: formDataUpload,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64, filename: posterFile.name }),
       });
-      const data = await res.json();
-      if (data.url) {
-        setFormData((p) => ({ ...p, posterUrl: data.url }));
-        toast({ title: 'آپلود موفق', description: 'عکس پوستر آپلود شد' });
-      } else {
-        toast({ title: 'خطا', description: data.error || 'آپلود ناموفق', variant: 'destructive' });
+      if (res.ok) {
+        const data = await res.json();
+        return data.url;
       }
     } catch {
-      toast({ title: 'خطا', description: 'خطا در آپلود عکس', variant: 'destructive' });
+      // fallback to base64
+      return posterPreview;
     }
-    // Reset file input
-    e.target.value = '';
+    return null;
   };
 
-  // Save movie (create or update)
-  const handleSaveMovie = async () => {
-    if (!formData.title.trim() || !formData.slug.trim()) {
-      toast({ title: 'خطا', description: 'عنوان و اسلاگ الزامی است', variant: 'destructive' });
+  // Save product
+  const handleSaveProduct = async () => {
+    if (!formData.title.trim()) {
+      toast({ title: 'خطا', description: 'نام محصول الزامی است', variant: 'destructive' });
       return;
     }
-    setFormSubmitting(true);
+    setSaving(true);
     try {
-      const url = editingMovie ? `/api/movies/${editingMovie.id}` : '/api/movies';
-      const method = editingMovie ? 'PUT' : 'POST';
+      const posterUrl = await uploadPoster();
       const body = {
-        ...formData,
+        title: formData.title,
+        code: formData.code || null,
+        slug: formData.slug || toSlug(formData.title),
+        description: formData.description || null,
+        posterUrl: posterUrl || null,
+        price: formData.price || null,
         year: formData.year ? parseInt(formData.year) : null,
+        ageRating: formData.ageRating || null,
+        status: formData.status || 'available',
+        episodeInfo: formData.episodeInfo || null,
+        subType: formData.subType || null,
         rating: formData.rating ? parseFloat(formData.rating) : null,
+        featured: formData.featured,
+        categoryIds: formData.categoryIds,
       };
+
+      const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
+      const method = editingProduct ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
+
+      if (res.ok) {
+        toast({ title: editingProduct ? 'ویرایش شد' : 'اضافه شد', description: 'محصول با موفقیت ذخیره شد' });
+        resetProductForm();
+        onDataChange();
+      } else {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'خطا در ذخیره فیلم');
+        toast({ title: 'خطا', description: data.error || 'خطا در ذخیره محصول', variant: 'destructive' });
       }
-      toast({ title: editingMovie ? 'فیلم ویرایش شد' : 'فیلم اضافه شد' });
-      setShowMovieForm(false);
-      onDataChange();
-    } catch (err) {
-      toast({
-        title: 'خطا',
-        description: err instanceof Error ? err.message : 'خطای ناشناخته',
-        variant: 'destructive',
-      });
+    } catch {
+      toast({ title: 'خطا', description: 'خطا در ارتباط با سرور', variant: 'destructive' });
     } finally {
-      setFormSubmitting(false);
+      setSaving(false);
     }
   };
 
-  // Delete movie/category
+  // Save category
+  const handleSaveCategory = async () => {
+    if (!catName.trim()) {
+      toast({ title: 'خطا', description: 'نام دسته‌بندی الزامی است', variant: 'destructive' });
+      return;
+    }
+    setCatSaving(true);
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: catName, slug: catSlug || toSlug(catName), type: 'product' }),
+      });
+      if (res.ok) {
+        toast({ title: 'اضافه شد', description: 'دسته‌بندی جدید ایجاد شد' });
+        setCatName('');
+        setCatSlug('');
+        setShowCategoryForm(false);
+        onDataChange();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: 'خطا', description: data.error || 'خطا در ایجاد دسته‌بندی', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'خطا', description: 'خطا در ارتباط با سرور', variant: 'destructive' });
+    } finally {
+      setCatSaving(false);
+    }
+  };
+
+  // Delete handler
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const url = deleteTarget.type === 'movie'
-        ? `/api/movies/${deleteTarget.id}`
+      const url = deleteTarget.type === 'product'
+        ? `/api/products/${deleteTarget.id}`
         : `/api/categories?id=${deleteTarget.id}`;
       const res = await fetch(url, { method: 'DELETE' });
-      if (!res.ok) throw new Error('خطا در حذف');
-      toast({ title: 'با موفقیت حذف شد' });
-      setDeleteTarget(null);
-      onDataChange();
+      if (res.ok) {
+        toast({ title: 'حذف شد', description: `${deleteTarget.name} حذف شد` });
+        setDeleteTarget(null);
+        onDataChange();
+      } else {
+        toast({ title: 'خطا', description: 'خطا در حذف', variant: 'destructive' });
+      }
     } catch {
-      toast({ title: 'خطا', description: 'عملیات حذف ناموفق بود', variant: 'destructive' });
+      toast({ title: 'خطا', description: 'خطا در ارتباط با سرور', variant: 'destructive' });
     } finally {
       setDeleting(false);
     }
   };
 
-  // Add category
-  const handleAddCategory = async () => {
-    if (!newCatName.trim() || !newCatSlug.trim()) return;
-    try {
-      const res = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newCatName, slug: newCatSlug }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'خطا');
-      }
-      toast({ title: 'دسته‌بندی اضافه شد' });
-      setNewCatName('');
-      setNewCatSlug('');
-      onDataChange();
-    } catch (err) {
-      toast({
-        title: 'خطا',
-        description: err instanceof Error ? err.message : 'خطا در افزودن دسته‌بندی',
-        variant: 'destructive',
-      });
-    }
+  // Edit product
+  const startEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({
+      title: product.title,
+      code: product.code || '',
+      slug: product.slug,
+      description: product.description || '',
+      posterUrl: product.posterUrl || '',
+      price: product.price || '',
+      year: product.year?.toString() || '',
+      ageRating: product.ageRating || '',
+      status: product.status,
+      episodeInfo: product.episodeInfo || '',
+      subType: product.subType || '',
+      rating: product.rating?.toString() || '',
+      featured: product.featured || false,
+      categoryIds: product.categories.map((c) => c.categoryId),
+    });
+    setPosterPreview(product.posterUrl || '');
+    setShowProductForm(true);
   };
 
-  // Toggle category in form
+  const resetProductForm = () => {
+    setShowProductForm(false);
+    setEditingProduct(null);
+    setFormData(emptyForm);
+    setPosterFile(null);
+    setPosterPreview('');
+  };
+
   const toggleCategory = (catId: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -307,199 +326,122 @@ export default function AdminPanel({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <Button
-          variant="outline"
-          className="border-cinematic-border bg-cinematic-surface text-cinematic-muted hover:bg-cinematic-card hover:text-white"
-          onClick={onBack}
-        >
-          <ArrowRight className="h-4 w-4 ml-1" />
-          بازگشت به سایت
-        </Button>
-        <div className="flex items-center gap-2">
-          <Film className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-bold text-white">پنل مدیریت</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-100">
+            <ShoppingBag className="h-5 w-5 text-pink-500" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">پنل مدیریت</h2>
+            <p className="text-sm text-gray-500">مدیریت محصولات و دسته‌بندی‌ها</p>
+          </div>
         </div>
+        <Button variant="outline" onClick={onBack} className="border-fantasy-border text-gray-600 hover:bg-pink-50 hover:text-pink-600">
+          <ArrowRight className="h-4 w-4 ml-1" />
+          بازگشت
+        </Button>
       </div>
 
-      {/* Categories Section */}
-      <section
-        className="mb-10"
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <Tag className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-bold text-white">مدیریت دسته‌بندی‌ها</h2>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-fantasy-border pb-2">
+        <button
+          onClick={() => setActiveTab('products')}
+          className={cn(
+            'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+            activeTab === 'products'
+              ? 'bg-pink-500 text-white shadow-sm'
+              : 'text-gray-500 hover:bg-pink-50 hover:text-pink-600'
+          )}
+        >
+          محصولات ({products.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('categories')}
+          className={cn(
+            'rounded-lg px-4 py-2 text-sm font-medium transition-all',
+            activeTab === 'categories'
+              ? 'bg-pink-500 text-white shadow-sm'
+              : 'text-gray-500 hover:bg-pink-50 hover:text-pink-600'
+          )}
+        >
+          دسته‌بندی‌ها ({categories.length})
+        </button>
+      </div>
 
-        <div className="rounded-xl border border-cinematic-border bg-cinematic-card p-4 space-y-4">
-          {/* Add Category */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
-            <div className="flex-1 space-y-1.5">
-              <Label className="text-cinematic-muted text-sm">نام دسته‌بندی</Label>
-              <Input
-                value={newCatName}
-                onChange={(e) => {
-                  setNewCatName(e.target.value);
-                  if (!newCatSlug) handleCategorySlugChange(e.target.value);
-                }}
-                placeholder="مثلاً: اکشن"
-                className="border-cinematic-border bg-cinematic-surface text-white placeholder:text-cinematic-muted/50"
-              />
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <Label className="text-cinematic-muted text-sm">اسلاگ</Label>
-              <Input
-                value={newCatSlug}
-                onChange={(e) => setNewCatSlug(e.target.value)}
-                placeholder="مثلاً: action"
-                dir="ltr"
-                className="border-cinematic-border bg-cinematic-surface text-white placeholder:text-cinematic-muted/50"
-              />
-            </div>
+      {/* Products Tab */}
+      {activeTab === 'products' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-800">محصولات</h3>
             <Button
-              onClick={handleAddCategory}
-              disabled={!newCatName.trim() || !newCatSlug.trim()}
-              className="bg-primary hover:bg-primary/90 text-white h-10 shrink-0"
+              onClick={() => { resetProductForm(); setShowProductForm(true); }}
+              className="bg-pink-500 hover:bg-pink-600 text-white"
             >
               <Plus className="h-4 w-4 ml-1" />
-              افزودن
+              محصول جدید
             </Button>
           </div>
 
-          {/* Category List */}
-          <div className="max-h-48 overflow-y-auto space-y-1.5">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full rounded-lg bg-cinematic-surface" />
-              ))
-            ) : (
-              <>
-                {categories.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="flex items-center justify-between rounded-lg bg-cinematic-surface/50 px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-white">{cat.name}</span>
-                      <Badge variant="outline" className="text-[10px] text-cinematic-muted border-cinematic-border" dir="ltr">
-                        {cat.slug}
-                      </Badge>
-                      <span className="text-[10px] text-cinematic-muted">
-                        ({cat._count?.movies || 0} فیلم)
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                      onClick={() => setDeleteTarget({ type: 'category', id: cat.id, name: cat.name })}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Movies Section */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Film className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold text-white">مدیریت فیلم‌ها</h2>
-            <Badge variant="outline" className="text-xs text-cinematic-muted border-cinematic-border">
-              {movies.length} فیلم
-            </Badge>
-          </div>
-          <Button
-            onClick={openNewMovieForm}
-            className="bg-primary hover:bg-primary/90 text-white"
-          >
-            <Plus className="h-4 w-4 ml-1" />
-            افزودن فیلم
-          </Button>
-        </div>
-
-        {/* Movies List */}
-        <div className="rounded-xl border border-cinematic-border bg-cinematic-card overflow-hidden">
+          {/* Product List */}
           {loading ? (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-lg bg-cinematic-surface" />
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg bg-pink-50" />
               ))}
             </div>
-          ) : movies.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-cinematic-muted">
-              <Film className="h-10 w-10 mb-2 opacity-40" />
-              <p className="text-sm">فیلمی وجود ندارد</p>
+          ) : products.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>محصولی وجود ندارد</p>
             </div>
           ) : (
-            <div className="max-h-[500px] overflow-y-auto">
-              {movies.map((movie) => (
+            <div className="space-y-2">
+              {products.map((product) => (
                 <div
-                  key={movie.id}
-                  className="flex items-center gap-3 border-b border-cinematic-border last:border-0 px-4 py-3 hover:bg-cinematic-surface/50 transition-colors"
+                  key={product.id}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-fantasy-border bg-white hover:bg-pink-50/50 transition-colors"
                 >
-                  {/* Thumbnail */}
-                  <div className="shrink-0 h-14 w-10 rounded-lg overflow-hidden bg-cinematic-surface">
-                    {movie.posterUrl ? (
-                      <img src={movie.posterUrl} alt={movie.title} className="h-full w-full object-cover" />
+                  <div className="h-12 w-12 rounded-lg overflow-hidden bg-pink-50 shrink-0">
+                    {product.posterUrl ? (
+                      <img src={product.posterUrl} alt={product.title} className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-lg">🎬</div>
+                      <div className="h-full w-full flex items-center justify-center text-lg">✨</div>
                     )}
                   </div>
-
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-white truncate">{movie.title}</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-cinematic-muted">{movie.year || '—'}</span>
-                      <Badge className={cn(
-                        'text-[10px] px-1 py-0',
-                        movie.status === 'airing'
-                          ? 'bg-rose-500/20 text-rose-400 border-0'
-                          : movie.status === 'completed'
-                          ? 'bg-emerald-500/20 text-emerald-400 border-0'
-                          : 'bg-amber-500/20 text-amber-400 border-0'
-                      )}>
-                        {statusLabels[movie.status] || movie.status}
+                    <h4 className="text-sm font-bold text-gray-800 truncate">{product.title}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      {product.price && (
+                        <Badge className="bg-pink-100 text-pink-600 text-[10px] border-0">{product.price}</Badge>
+                      )}
+                      <Badge className="bg-gray-100 text-gray-500 text-[10px] border-0">
+                        {product.status === 'available' ? 'موجود' : product.status === 'unavailable' ? 'ناموجود' : 'به‌زودی'}
                       </Badge>
+                      {product.categories.slice(0, 2).map((c) => (
+                        <Badge key={c.id} variant="outline" className="border-pink-200 text-pink-500 text-[10px]">
+                          {c.category.name}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
-
-                  {/* Actions */}
                   <div className="flex items-center gap-1 shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-cinematic-muted hover:text-amber-400 hover:bg-amber-500/10"
-                      onClick={() => onOpenFolder(movie.id)}
-                      title="باز کردن پوشه"
+                      className="h-8 w-8 text-gray-400 hover:text-pink-600 hover:bg-pink-50"
+                      onClick={() => startEditProduct(product)}
                     >
-                      <FolderOpen className="h-4 w-4" />
+                      <Edit className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-cinematic-muted hover:text-primary hover:bg-primary/10"
-                      onClick={() => openEditMovieForm(movie)}
-                      title="ویرایش"
+                      className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                      onClick={() => setDeleteTarget({ type: 'product', id: product.id, name: product.title })}
                     >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-cinematic-muted hover:text-red-400 hover:bg-red-500/10"
-                      onClick={() => setDeleteTarget({ type: 'movie', id: movie.id, name: movie.title })}
-                      title="حذف"
-                    >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -507,201 +449,197 @@ export default function AdminPanel({
             </div>
           )}
         </div>
-      </section>
+      )}
 
-      {/* Movie Form Dialog */}
-      <Dialog open={showMovieForm} onOpenChange={(v) => !v && setShowMovieForm(false)}>
-        <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto border-cinematic-border bg-cinematic-surface p-0">
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-cinematic-border bg-cinematic-surface px-6 py-4">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-white">
-                {editingMovie ? 'ویرایش فیلم' : 'افزودن فیلم جدید'}
-              </DialogTitle>
-            </DialogHeader>
+      {/* Categories Tab */}
+      {activeTab === 'categories' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-800">دسته‌بندی‌ها</h3>
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-cinematic-muted hover:text-white"
-              onClick={() => setShowMovieForm(false)}
+              onClick={() => setShowCategoryForm(true)}
+              className="bg-pink-500 hover:bg-pink-600 text-white"
             >
-              <X className="h-4 w-4" />
+              <Plus className="h-4 w-4 ml-1" />
+              دسته‌بندی جدید
             </Button>
           </div>
-          <div className="p-6 space-y-4">
-            {/* Title, Slug & Code */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">عنوان *</Label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  placeholder="عنوان فیلم"
-                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
-                />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {categories.map((cat) => (
+              <div
+                key={cat.id}
+                className="flex items-center gap-3 p-3 rounded-xl border border-fantasy-border bg-white hover:bg-pink-50/50 transition-colors"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-100 shrink-0">
+                  <Tag className="h-4 w-4 text-pink-500" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-gray-800">{cat.name}</h4>
+                  <p className="text-xs text-gray-400">{cat._count?.products || 0} محصول</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                  onClick={() => setDeleteTarget({ type: 'category', id: cat.id, name: cat.name })}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
+            ))}
+          </div>
+
+          {categories.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <Tag className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>دسته‌بندی وجود ندارد</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Product Form Dialog */}
+      <Dialog open={showProductForm} onOpenChange={(v) => !v && resetProductForm()}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto border-fantasy-border bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-gray-800">
+              {editingProduct ? 'ویرایش محصول' : 'محصول جدید'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {/* Title */}
+            <div className="space-y-1.5">
+              <Label className="text-gray-700 text-sm">نام محصول *</Label>
+              <Input
+                value={formData.title}
+                onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+                placeholder="مثلاً: رژ لب مات رز"
+                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+              />
+            </div>
+
+            {/* Code & Price */}
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">کد</Label>
+                <Label className="text-gray-700 text-sm">کد محصول</Label>
                 <Input
                   value={formData.code}
                   onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))}
-                  placeholder="کد اختصاصی"
-                  dir="ltr"
-                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50 font-mono"
+                  placeholder="SKU"
+                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">اسلاگ *</Label>
+                <Label className="text-gray-700 text-sm">قیمت</Label>
                 <Input
-                  value={formData.slug}
-                  onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
-                  placeholder="movie-slug"
-                  dir="ltr"
-                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+                  value={formData.price}
+                  onChange={(e) => setFormData((p) => ({ ...p, price: e.target.value }))}
+                  placeholder="مثلاً: ۱۵۰,۰۰۰ تومان"
+                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
                 />
               </div>
+            </div>
+
+            {/* Slug */}
+            <div className="space-y-1.5">
+              <Label className="text-gray-700 text-sm">اسلاگ</Label>
+              <Input
+                value={formData.slug}
+                onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
+                placeholder="auto-generated"
+                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+              />
             </div>
 
             {/* Description */}
             <div className="space-y-1.5">
-              <Label className="text-cinematic-muted text-sm">توضیحات</Label>
+              <Label className="text-gray-700 text-sm">توضیحات</Label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-                placeholder="توضیحات فیلم..."
+                placeholder="توضیحات محصول..."
                 rows={3}
-                className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50 resize-none"
+                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
               />
             </div>
 
-            {/* Poster URL & Folder Path */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">پوستر فیلم</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={formData.posterUrl}
-                    onChange={(e) => setFormData((p) => ({ ...p, posterUrl: e.target.value }))}
-                    placeholder="https://... یا فایل رو آپلود کنید"
-                    dir="ltr"
-                    className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
-                  />
-                  <label className="cursor-pointer flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-cinematic-accent hover:bg-cinematic-accent-hover text-white text-sm whitespace-nowrap transition-colors">
-                    <Upload className="w-4 h-4" />
-                    انتخاب عکس
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="hidden"
-                      onChange={handlePosterUpload}
-                    />
-                  </label>
-                </div>
-                {formData.posterUrl && (
-                  <div className="mt-2 relative w-20 h-28 rounded-md overflow-hidden border border-cinematic-border">
-                    <img src={formData.posterUrl} alt="پوستر" className="w-full h-full object-cover" />
-                  </div>
+            {/* Poster Upload */}
+            <div className="space-y-1.5">
+              <Label className="text-gray-700 text-sm">تصویر محصول</Label>
+              <div className="flex items-center gap-3">
+                <label className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-fantasy-border bg-pink-50 cursor-pointer hover:border-pink-300 transition-colors overflow-hidden">
+                  {posterPreview ? (
+                    <img src={posterPreview} alt="preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-6 w-6 text-pink-300" />
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePosterChange} />
+                </label>
+                {posterPreview && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-400 hover:text-red-500"
+                    onClick={() => { setPosterPreview(''); setPosterFile(null); setFormData((p) => ({ ...p, posterUrl: '' })); }}
+                  >
+                    <X className="h-3.5 w-3.5 ml-1" />
+                    حذف
+                  </Button>
                 )}
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">مسیر پوشه</Label>
-                <Input
-                  value={formData.folderPath}
-                  onChange={(e) => setFormData((p) => ({ ...p, folderPath: e.target.value }))}
-                  placeholder="/path/to/folder"
-                  dir="ltr"
-                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
-                />
-              </div>
             </div>
 
-            {/* Year & Age Rating & Status */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Status & SubType */}
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">سال</Label>
-                <Input
-                  value={formData.year}
-                  onChange={(e) => setFormData((p) => ({ ...p, year: e.target.value }))}
-                  placeholder="2025"
-                  type="number"
-                  dir="ltr"
-                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">رده سنی</Label>
-                <Select
-                  value={formData.ageRating}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, ageRating: v }))}
-                >
-                  <SelectTrigger className="border-cinematic-border bg-cinematic-card text-white">
-                    <SelectValue placeholder="انتخاب کنید" />
-                  </SelectTrigger>
-                  <SelectContent className="border-cinematic-border bg-cinematic-card">
-                    <SelectItem value="7+">7+</SelectItem>
-                    <SelectItem value="13+">13+</SelectItem>
-                    <SelectItem value="16+">16+</SelectItem>
-                    <SelectItem value="18+">18+</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">وضعیت</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, status: v }))}
-                >
-                  <SelectTrigger className="border-cinematic-border bg-cinematic-card text-white">
+                <Label className="text-gray-700 text-sm">وضعیت</Label>
+                <Select value={formData.status} onValueChange={(v) => setFormData((p) => ({ ...p, status: v }))}>
+                  <SelectTrigger className="border-fantasy-border bg-white text-gray-800">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-cinematic-border bg-cinematic-card">
-                    <SelectItem value="completed">تکمیل شده</SelectItem>
-                    <SelectItem value="airing">در حال پخش</SelectItem>
-                    <SelectItem value="upcoming">آینده</SelectItem>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="available">موجود</SelectItem>
+                    <SelectItem value="unavailable">ناموجود</SelectItem>
+                    <SelectItem value="upcoming">به‌زودی</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-gray-700 text-sm">نوع</Label>
+                <Input
+                  value={formData.subType}
+                  onChange={(e) => setFormData((p) => ({ ...p, subType: e.target.value }))}
+                  placeholder="مثلاً: اورجینال"
+                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+                />
               </div>
             </div>
 
-            {/* Episode Info & Sub Type & Rating */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Rating & Year */}
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">اطلاعات قسمت</Label>
+                <Label className="text-gray-700 text-sm">امتیاز</Label>
                 <Input
-                  value={formData.episodeInfo}
-                  onChange={(e) => setFormData((p) => ({ ...p, episodeInfo: e.target.value }))}
-                  placeholder="S1 EP12"
-                  dir="ltr"
-                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">نوع زیرنویس</Label>
-                <Select
-                  value={formData.subType}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, subType: v }))}
-                >
-                  <SelectTrigger className="border-cinematic-border bg-cinematic-card text-white">
-                    <SelectValue placeholder="انتخاب کنید" />
-                  </SelectTrigger>
-                  <SelectContent className="border-cinematic-border bg-cinematic-card">
-                    <SelectItem value="سافت ساب">سافت ساب</SelectItem>
-                    <SelectItem value="دوبله">دوبله</SelectItem>
-                    <SelectItem value="hardsub">هاردساب</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-cinematic-muted text-sm">امتیاز (0-10)</Label>
-                <Input
+                  type="number"
                   value={formData.rating}
                   onChange={(e) => setFormData((p) => ({ ...p, rating: e.target.value }))}
-                  placeholder="8.5"
-                  type="number"
+                  placeholder="0-10"
                   min="0"
                   max="10"
                   step="0.1"
-                  dir="ltr"
-                  className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-gray-700 text-sm">سال</Label>
+                <Input
+                  type="number"
+                  value={formData.year}
+                  onChange={(e) => setFormData((p) => ({ ...p, year: e.target.value }))}
+                  placeholder="2024"
+                  className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
                 />
               </div>
             </div>
@@ -712,88 +650,108 @@ export default function AdminPanel({
                 id="featured"
                 checked={formData.featured}
                 onCheckedChange={(v) => setFormData((p) => ({ ...p, featured: !!v }))}
-                className="border-cinematic-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                className="border-pink-300 data-[state=checked]:bg-pink-500 data-[state=checked]:border-pink-500"
               />
-              <Label htmlFor="featured" className="text-cinematic-muted text-sm cursor-pointer">
-                نمایش در بخش ویژه (در حال پخش)
-              </Label>
+              <Label htmlFor="featured" className="text-gray-700 text-sm cursor-pointer">محصول ویژه</Label>
             </div>
 
-            {/* Categories Multi-Select */}
-            <div className="space-y-2">
-              <Label className="text-cinematic-muted text-sm">دسته‌بندی‌ها</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 rounded-lg border border-cinematic-border bg-cinematic-card">
-                {categories.map((cat) => (
-                  <label
-                    key={cat.id}
-                    className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-cinematic-surface transition-colors"
-                  >
-                    <Checkbox
-                      checked={formData.categoryIds.includes(cat.id)}
-                      onCheckedChange={() => toggleCategory(cat.id)}
-                      className="border-cinematic-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                    />
-                    <span className="text-sm text-white">{cat.name}</span>
-                  </label>
-                ))}
+            {/* Categories */}
+            {categories.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-gray-700 text-sm">دسته‌بندی‌ها</Label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleCategory(cat.id)}
+                      className={cn(
+                        'rounded-full px-3 py-1.5 text-xs font-medium transition-all',
+                        formData.categoryIds.includes(cat.id)
+                          ? 'bg-pink-500 text-white'
+                          : 'bg-pink-50 text-pink-400 border border-fantasy-border hover:bg-pink-100'
+                      )}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Save / Cancel */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-cinematic-border">
-              <Button
-                variant="outline"
-                className="border-cinematic-border bg-cinematic-card text-cinematic-muted hover:text-white hover:bg-cinematic-surface"
-                onClick={() => setShowMovieForm(false)}
-                disabled={formSubmitting}
-              >
-                انصراف
-              </Button>
-              <Button
-                onClick={handleSaveMovie}
-                disabled={formSubmitting || !formData.title.trim() || !formData.slug.trim()}
-                className="bg-primary hover:bg-primary/90 text-white min-w-[120px]"
-              >
-                {formSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    در حال ذخیره...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <Save className="h-4 w-4" />
-                    ذخیره
-                  </span>
-                )}
-              </Button>
+            {/* Save Button */}
+            <Button
+              onClick={handleSaveProduct}
+              disabled={saving}
+              className="w-full bg-pink-500 hover:bg-pink-600 text-white h-11"
+            >
+              {saving ? '...' : (
+                <>
+                  <Save className="h-4 w-4 ml-1" />
+                  {editingProduct ? 'ذخیره تغییرات' : 'اضافه کردن محصول'}
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Form Dialog */}
+      <Dialog open={showCategoryForm} onOpenChange={setShowCategoryForm}>
+        <DialogContent className="max-w-sm border-fantasy-border bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-gray-800">دسته‌بندی جدید</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-1.5">
+              <Label className="text-gray-700 text-sm">نام دسته‌بندی</Label>
+              <Input
+                value={catName}
+                onChange={(e) => setCatName(e.target.value)}
+                placeholder="مثلاً: آرایشی"
+                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+              />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-gray-700 text-sm">اسلاگ</Label>
+              <Input
+                value={catSlug}
+                onChange={(e) => setCatSlug(e.target.value)}
+                placeholder="auto-generated"
+                className="border-fantasy-border bg-white text-gray-800 placeholder:text-gray-400"
+              />
+            </div>
+            <Button
+              onClick={handleSaveCategory}
+              disabled={catSaving}
+              className="w-full bg-pink-500 hover:bg-pink-600 text-white"
+            >
+              {catSaving ? '...' : 'اضافه کردن'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
-        <AlertDialogContent className="border-cinematic-border bg-cinematic-surface">
+        <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-white">
-              <AlertTriangle className="h-5 w-5 text-red-400" />
-              تأیید حذف
+            <AlertDialogTitle className="text-gray-800 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              حذف {deleteTarget?.type === 'product' ? 'محصول' : 'دسته‌بندی'}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-cinematic-muted">
-              آیا از حذف <span className="text-white font-medium">{deleteTarget?.name}</span> اطمینان دارید؟
-              این عمل قابل بازگشت نیست.
+            <AlertDialogDescription className="text-gray-600">
+              آیا مطمئنید که &laquo;{deleteTarget?.name}&raquo; را می‌خواهید حذف کنید؟ این عمل غیرقابل برگشت است.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-cinematic-border bg-cinematic-card text-cinematic-muted hover:text-white hover:bg-cinematic-surface">
-              انصراف
-            </AlertDialogCancel>
+            <AlertDialogCancel className="border-fantasy-border text-gray-600">انصراف</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-red-500 hover:bg-red-600 text-white"
             >
-              {deleting ? 'در حال حذف...' : 'حذف'}
+              {deleting ? '...' : 'حذف'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

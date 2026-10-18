@@ -6,12 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import CategoryFilter from '@/components/CategoryFilter';
-import MovieGrid from '@/components/MovieGrid';
-import { type Movie } from '@/components/MovieCard';
+import ProductGrid from '@/components/ProductGrid';
+import { type Product } from '@/components/ProductCard';
 import dynamic from 'next/dynamic';
 
 const FeaturedRow = dynamic(() => import('@/components/FeaturedRow'), { ssr: false });
-const MovieDetail = dynamic(() => import('@/components/MovieDetail'), { ssr: false });
+const ProductDetail = dynamic(() => import('@/components/ProductDetail'), { ssr: false });
 const AdminPanel = dynamic(() => import('@/components/AdminPanel'), { ssr: false });
 
 interface Category {
@@ -19,7 +19,7 @@ interface Category {
   name: string;
   slug: string;
   type: string;
-  _count?: { movies: number };
+  _count?: { products: number };
 }
 
 export default function HomePage() {
@@ -33,8 +33,8 @@ export default function HomePage() {
   const isProduction = process.env.NODE_ENV === 'production';
 
   // Data state
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [featuredMovies, setFeaturedMovies] = useState<Movie[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -47,7 +47,7 @@ export default function HomePage() {
   const limit = 20;
 
   // Detail modal
-  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
   // Fetch categories
@@ -63,8 +63,8 @@ export default function HomePage() {
     }
   }, []);
 
-  // Fetch movies with filters
-  const fetchMovies = useCallback(async () => {
+  // Fetch products with filters
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -74,10 +74,10 @@ export default function HomePage() {
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (statusFilter !== 'all') params.set('status', statusFilter);
 
-      const res = await fetch(`/api/movies?${params}`);
+      const res = await fetch(`/api/products?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setMovies(data.movies);
+        setProducts(data.products);
         setTotal(data.total);
       }
     } catch {
@@ -87,13 +87,13 @@ export default function HomePage() {
     }
   }, [activeCategory, searchQuery, statusFilter, currentPage]);
 
-  // Fetch featured movies
+  // Fetch featured products
   const fetchFeatured = useCallback(async () => {
     try {
-      const res = await fetch('/api/movies?status=airing&limit=20&page=1');
+      const res = await fetch('/api/products?status=available&limit=20&page=1');
       if (res.ok) {
         const data = await res.json();
-        setFeaturedMovies(data.movies.filter((m: Movie) => m.featured));
+        setFeaturedProducts(data.products.filter((p: Product) => p.featured));
       }
     } catch {
       // silent
@@ -103,9 +103,8 @@ export default function HomePage() {
   // Initial load
   useEffect(() => {
     fetchCategories();
-    fetchMovies();
+    fetchProducts();
     fetchFeatured();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reset page on filter change
@@ -113,51 +112,27 @@ export default function HomePage() {
     setCurrentPage(1);
   }, [activeCategory, searchQuery, statusFilter]);
 
-  // Fetch movies when filters/page change (skip initial load, handled above)
+  // Fetch products when filters/page change (skip initial load)
   const isInitial = useRef(true);
   useEffect(() => {
     if (isInitial.current) {
       isInitial.current = false;
       return;
     }
-    fetchMovies();
-  }, [fetchMovies]);
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Refresh all data
   const refreshData = useCallback(() => {
     fetchCategories();
-    fetchMovies();
+    fetchProducts();
     fetchFeatured();
-  }, [fetchCategories, fetchMovies, fetchFeatured]);
+  }, [fetchCategories, fetchProducts, fetchFeatured]);
 
-  // Handle movie card click -> open detail
-  const handleMovieClick = (movie: Movie) => {
-    setSelectedMovie(movie);
+  // Handle product card click
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
     setShowDetail(true);
-  };
-
-  // Handle open folder
-  const handleOpenFolder = async (movieId: string) => {
-    try {
-      const res = await fetch('/api/movies/open-folder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ movieId }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        toast({ title: 'پوشه باز شد', description: data.message });
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast({
-          title: 'خطا',
-          description: data.error || 'امکان باز کردن پوشه وجود ندارد',
-          variant: 'destructive',
-        });
-      }
-    } catch {
-      toast({ title: 'خطا', description: 'خطا در ارتباط با سرور', variant: 'destructive' });
-    }
   };
 
   // Admin login handler
@@ -188,35 +163,34 @@ export default function HomePage() {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="min-h-screen flex flex-col bg-cinematic-bg">
+    <div className="min-h-screen flex flex-col bg-fantasy-bg">
       <Navbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         onAdminClick={() => {
-      if (isAdmin) {
-        setIsAdmin(false);
-      } else if (isProduction) {
-        setShowAdminLogin(true);
-      } else {
-        setIsAdmin(true);
-      }
-    }}
+          if (isAdmin) {
+            setIsAdmin(false);
+          } else if (isProduction) {
+            setShowAdminLogin(true);
+          } else {
+            setIsAdmin(true);
+          }
+        }}
         isAdmin={isAdmin}
       />
 
       <main className="flex-1">
-          <div className={isAdmin ? 'page-view-enter' : 'page-view-enter'}>
+        <div className={isAdmin ? 'page-view-enter' : 'page-view-enter'}>
           {isAdmin ? (
             <div className="pt-6">
               <AdminPanel
                 categories={categories}
-                movies={movies}
+                products={products}
                 loading={loading}
                 onBack={() => setIsAdmin(false)}
                 onDataChange={refreshData}
-                onOpenFolder={handleOpenFolder}
               />
             </div>
           ) : (
@@ -229,55 +203,53 @@ export default function HomePage() {
               />
 
               {/* Featured Row */}
-              {!searchQuery && activeCategory === 'all' && statusFilter === 'all' && featuredMovies.length > 0 && (
+              {!searchQuery && activeCategory === 'all' && statusFilter === 'all' && featuredProducts.length > 0 && (
                 <FeaturedRow
-                  movies={featuredMovies}
-                  onMovieClick={handleMovieClick}
-                  onOpenFolder={handleOpenFolder}
+                  products={featuredProducts}
+                  onProductClick={handleProductClick}
                 />
               )}
 
               {/* Section Title */}
               <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
-                <h2 className="text-base font-bold text-white">
+                <h2 className="text-base font-bold text-gray-800">
                   {activeCategory !== 'all'
-                    ? categories.find((c) => c.slug === activeCategory)?.name || 'فیلم‌ها'
+                    ? categories.find((c) => c.slug === activeCategory)?.name || 'محصولات'
                     : searchQuery
                     ? `نتایج جستجو: "${searchQuery}"`
                     : statusFilter !== 'all'
-                    ? statusFilter === 'airing'
-                      ? 'در حال پخش'
-                      : statusFilter === 'completed'
-                      ? 'تکمیل شده'
-                      : 'آینده'
-                    : 'همه فیلم‌ها'}
+                    ? statusFilter === 'available'
+                      ? 'محصولات موجود'
+                      : statusFilter === 'unavailable'
+                      ? 'ناموجود'
+                      : 'به‌زودی'
+                    : 'همه محصولات'}
                 </h2>
-                <p className="text-xs text-cinematic-muted mt-1">
-                  {total} فیلم یافت شد
+                <p className="text-xs text-gray-400 mt-1">
+                  {total} محصول یافت شد
                 </p>
               </div>
 
-              {/* Movie Grid */}
-              <MovieGrid
-                movies={movies}
+              {/* Product Grid */}
+              <ProductGrid
+                products={products}
                 loading={loading}
-                onMovieClick={handleMovieClick}
-                onOpenFolder={handleOpenFolder}
+                onProductClick={handleProductClick}
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
               />
             </div>
           )}
-          </div>
+        </div>
       </main>
 
       {/* Footer */}
       {!isAdmin && (
-        <footer className="mt-auto border-t border-cinematic-border bg-cinematic-bg/50 py-4">
+        <footer className="mt-auto border-t border-fantasy-border bg-white/50 py-4">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
-            <p className="text-xs text-cinematic-muted">
-              مدیریت فیلم — تمامی حقوق محفوظ است
+            <p className="text-xs text-gray-400">
+              محصولات فانتزی — تمامی حقوق محفوظ است
             </p>
           </div>
         </footer>
@@ -285,23 +257,23 @@ export default function HomePage() {
 
       {/* Admin Password Dialog */}
       {showAdminLogin && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-sm mx-4 rounded-xl border border-cinematic-border bg-cinematic-surface p-6 space-y-4">
-            <h3 className="text-lg font-bold text-white">ورود به مدیریت</h3>
-            <p className="text-sm text-cinematic-muted">رمز عبور مدیریت را وارد کنید</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 rounded-xl border border-fantasy-border bg-white p-6 space-y-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-800">ورود به مدیریت</h3>
+            <p className="text-sm text-gray-500">رمز عبور مدیریت را وارد کنید</p>
             <Input
               type="password"
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
               placeholder="رمز عبور"
-              className="border-cinematic-border bg-cinematic-card text-white placeholder:text-cinematic-muted/50"
+              className="border-fantasy-border bg-pink-50/50 text-gray-800 placeholder:text-gray-400"
               autoFocus
             />
             <div className="flex gap-2 justify-end">
               <Button
                 variant="outline"
-                className="border-cinematic-border bg-cinematic-card text-cinematic-muted"
+                className="border-fantasy-border text-gray-600"
                 onClick={() => { setShowAdminLogin(false); setAdminPassword(''); }}
               >
                 انصراف
@@ -309,7 +281,7 @@ export default function HomePage() {
               <Button
                 onClick={handleAdminLogin}
                 disabled={adminLogging || !adminPassword.trim()}
-                className="bg-primary hover:bg-primary/90 text-white"
+                className="bg-pink-500 hover:bg-pink-600 text-white"
               >
                 {adminLogging ? '...' : 'ورود'}
               </Button>
@@ -318,15 +290,14 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Movie Detail Modal */}
-      <MovieDetail
-        movie={selectedMovie}
+      {/* Product Detail Modal */}
+      <ProductDetail
+        product={selectedProduct}
         open={showDetail}
         onClose={() => {
           setShowDetail(false);
-          setTimeout(() => setSelectedMovie(null), 200);
+          setTimeout(() => setSelectedProduct(null), 200);
         }}
-        onOpenFolder={handleOpenFolder}
       />
     </div>
   );

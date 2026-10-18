@@ -11,39 +11,39 @@ model Category {
   id          String  @id @default(cuid())
   name        String
   slug        String  @unique
-  type        String  @default("movie")
+  type        String  @default("product")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  movies      MovieCategory[]
+  products    ProductCategory[]
 }
 
-model Movie {
+model Product {
   id          String   @id @default(cuid())
   title       String
   code        String?
   slug        String   @unique
   description String?
   posterUrl   String?
-  folderPath  String?
+  price       String?
   year        Int?
   ageRating   String?
-  status      String   @default("completed")
+  status      String   @default("available")
   episodeInfo String?
   subType     String?
   rating      Float?
   featured    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  categories  MovieCategory[]
+  categories  ProductCategory[]
 }
 
-model MovieCategory {
+model ProductCategory {
   id         String   @id @default(cuid())
-  movieId    String
+  productId  String
   categoryId String
-  movie      Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
 
-  @@unique([movieId, categoryId])
+  @@unique([productId, categoryId])
 }

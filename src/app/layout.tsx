@@ -5,12 +5,12 @@ import { Toaster } from "@/components/ui/toaster";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0a0a1a",
+  themeColor: "#EC4899",
 };
 
 export const metadata: Metadata = {
-  title: "مدیریت فیلم",
-  description: "مدیریت و پخش فیلم و انیمه",
+  title: "محصولات فانتزی",
+  description: "فروشگاه آنلاین محصولات فانتزی - آرایشی، عطر، اکسسوری و لوازم تحریر",
   icons: {
     icon: "/logo.svg",
   },
@@ -26,7 +26,7 @@ export default function RootLayout({
       <head>
         <link rel="preload" href="/vazirmatn.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
-      <body className="dark antialiased">
+      <body className="antialiased">
         {children}
         <Toaster />
       </body>

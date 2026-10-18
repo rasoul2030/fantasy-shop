@@ -7,16 +7,16 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const movie = await db.movie.findUnique({
+    const product = await db.product.findUnique({
       where: { id },
       include: { categories: { include: { category: true } } },
     });
-    if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
-    return NextResponse.json(movie);
+    return NextResponse.json(product);
   } catch {
-    return NextResponse.json({ error: 'Failed to fetch movie' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });
   }
 }
 
@@ -27,9 +27,9 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, code, slug, description, posterUrl, folderPath, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
+    const { title, code, slug, description, posterUrl, price, year, ageRating, status, episodeInfo, subType, rating, featured, categoryIds } = body;
 
-    const movie = await db.movie.update({
+    const product = await db.product.update({
       where: { id },
       data: {
         title,
@@ -37,10 +37,10 @@ export async function PUT(
         slug,
         description: description || null,
         posterUrl: posterUrl || null,
-        folderPath: folderPath || null,
+        price: price || null,
         year: year || null,
         ageRating: ageRating || null,
-        status: status || 'completed',
+        status: status || 'available',
         episodeInfo: episodeInfo || null,
         subType: subType || null,
         rating: rating || null,
@@ -55,9 +55,9 @@ export async function PUT(
       include: { categories: { include: { category: true } } },
     });
 
-    return NextResponse.json(movie);
+    return NextResponse.json(product);
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Failed to update movie';
+    const msg = error instanceof Error ? error.message : 'Failed to update product';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
@@ -68,9 +68,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await db.movie.delete({ where: { id } });
+    await db.product.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch {
-    return NextResponse.json({ error: 'Failed to delete movie' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
   }
 }

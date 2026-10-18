@@ -6,7 +6,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
-  _count?: { movies: number };
+  _count?: { products: number };
 }
 
 interface CategoryFilterProps {
@@ -28,8 +28,8 @@ export default function CategoryFilter({
           className={cn(
             'rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 whitespace-nowrap hover:scale-105 active:scale-95',
             activeCategory === 'all'
-              ? 'bg-primary text-white shadow-lg shadow-primary/25'
-              : 'bg-cinematic-surface text-cinematic-muted hover:bg-cinematic-card hover:text-white border border-cinematic-border'
+              ? 'bg-pink-500 text-white shadow-lg shadow-pink-300/25'
+              : 'bg-white text-gray-500 hover:bg-pink-50 hover:text-pink-600 border border-fantasy-border'
           )}
         >
           همه
@@ -41,8 +41,8 @@ export default function CategoryFilter({
             className={cn(
               'rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 whitespace-nowrap hover:scale-105 active:scale-95',
               activeCategory === cat.slug
-                ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                : 'bg-cinematic-surface text-cinematic-muted hover:bg-cinematic-card hover:text-white border border-cinematic-border'
+                ? 'bg-pink-500 text-white shadow-lg shadow-pink-300/25'
+                : 'bg-white text-gray-500 hover:bg-pink-50 hover:text-pink-600 border border-fantasy-border'
             )}
           >
             {cat.name}

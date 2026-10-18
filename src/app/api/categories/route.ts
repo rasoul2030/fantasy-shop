@@ -7,8 +7,9 @@ export const revalidate = 60;
 export async function GET() {
   try {
     const categories = await db.category.findMany({
+      where: { type: 'product' },
       orderBy: { name: 'asc' },
-      include: { _count: { select: { movies: true } } },
+      include: { _count: { select: { products: true } } },
     });
     return NextResponse.json(categories, {
       headers: {
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 });
     }
     const category = await db.category.create({
-      data: { name, slug, type: type || 'movie' },
+      data: { name, slug, type: type || 'product' },
     });
     return NextResponse.json(category, { status: 201 });
   } catch (err) {
