@@ -52,3 +52,19 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Downloads and screenshots
+/download/
+
+# Scripts and zscripts
+/.zscripts/
+
+# Deploy files
+deploy.bat
+PERF_SUMMARY.md
+
+# Old movie manager windows
+movie-manager-windows/
+
+# Log files
+*.log
+server.log
