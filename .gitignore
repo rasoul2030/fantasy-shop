@@ -68,3 +68,15 @@ movie-manager-windows/
 # Log files
 *.log
 server.log
+
+# Build artifacts from old builds
+fantasy-shop/
+
+# Examples
+examples/
+
+# Caddyfile (server-specific)
+Caddyfile
+
+# Scripts directory
+scripts/
