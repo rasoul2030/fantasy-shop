@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { put } from '@vercel/blob';
 
 export async function POST(request: Request) {
   try {
@@ -22,25 +21,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'File too large. Max 5MB.' }, { status: 400 });
     }
 
+    // Generate unique filename
+    const ext = file.name.split('.').pop() || 'jpg';
+    const uniqueName = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    // Check if we're on Vercel (has BLOB_READ_WRITE_TOKEN)
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      // Upload to Vercel Blob Storage
+      const blob = await put(uniqueName, file, {
+        access: 'public',
+        contentType: file.type,
+      });
+
+      return NextResponse.json({ url: blob.url, name: uniqueName });
+    }
+
+    // Fallback: local filesystem (for development)
+    const { writeFile, mkdir } = await import('fs/promises');
+    const path = await import('path');
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Generate unique filename
-    const ext = path.extname(file.name) || '.jpg';
-    const uniqueName = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-
-    // Ensure posters directory exists
     const postersDir = path.join(process.cwd(), 'public', 'posters');
     await mkdir(postersDir, { recursive: true });
-
-    // Save file
     const filePath = path.join(postersDir, uniqueName);
     await writeFile(filePath, buffer);
 
-    // Return the URL that can be used in <img> tags
-    const posterUrl = `/posters/${uniqueName}`;
-
-    return NextResponse.json({ url: posterUrl, name: uniqueName });
+    return NextResponse.json({ url: `/posters/${uniqueName}`, name: uniqueName });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Upload failed';
     return NextResponse.json({ error: msg }, { status: 500 });
